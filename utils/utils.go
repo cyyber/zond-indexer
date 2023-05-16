@@ -154,3 +154,9 @@ func BitAtVector(b []byte, i int) bool {
 	bb := b[i/8]
 	return (bb & (1 << uint(i%8))) > 0
 }
+
+func ReverseSlice[S ~[]E, E any](s S) {
+	for i, j := 0, len(s)-1; i < j; i, j = i+1, j-1 {
+		s[i], s[j] = s[j], s[i]
+	}
+}

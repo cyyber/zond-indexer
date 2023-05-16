@@ -254,7 +254,7 @@ func (mongodb *Mongo) SaveValidatorBalances(epoch uint64, validators []*types.Va
 	start := time.Now()
 
 	for _, validator := range validators {
-		_, err := mongodb.Db.Collection(BEACON_CHAIN).InsertOne(ctx, bson.D{{Key: "validatorId", Value: validator.Index}, {Key: "balance", Value: validator.Balance}, {Key: "effectiveBalance", Value: validator.EffectiveBalance}, {Key: "type", Value: VALIDATOR_BALANCES_FAMILY}})
+		_, err := mongodb.Db.Collection(BEACON_CHAIN).InsertOne(ctx, bson.D{{Key: "validatorId", Value: validator.Index}, {Key: "balance", Value: validator.Balance}, {Key: "effectiveBalance", Value: validator.EffectiveBalance}, {Key: "type", Value: VALIDATOR_BALANCES_FAMILY}, {Key: "epoch", Value: epoch}})
 		if err != nil {
 			return err
 		}
@@ -466,3 +466,137 @@ func (mongodb *Mongo) SaveSyncComitteeDuties(blocks map[uint64]map[string]*types
 	logger.Infof("exported sync committee duties in %v", time.Since(start))
 	return nil
 }
+
+func (mongodb *Mongo) GetValidatorBalanceHistory(validators []uint64, startEpoch uint64, endEpoch uint64) (map[uint64][]*types.ValidatorBalance, error) {
+	valLen := len(validators)
+	getAllThreshold := 1000
+	validatorMap := make(map[uint64]bool, valLen)
+	for _, validatorIndex := range validators {
+		validatorMap[validatorIndex] = true
+	}
+
+	ctx, cancel := context.WithDeadline(context.Background(), time.Now().Add(time.Second*30))
+	defer cancel()
+
+	res := make(map[uint64][]*types.ValidatorBalance, valLen)
+	if endEpoch < startEpoch { // handle overflows
+		startEpoch = 0
+	}
+
+	filter := bson.D{{Key: "chainId", Value: mongodb.ChainId}, {Key: "type", Value: VALIDATOR_BALANCES_FAMILY}, {Key: "validatorId", Value: bson.D{{Key: "validatorId", Value: bson.D{{Key: "$in", Value: validators}}}}}, {Key: "epoch", Value: bson.D{{Key: "$gte", Value: startEpoch}, {Key: "$lte", Value: endEpoch}}}}
+	cursor, err := mongodb.Db.Collection(BEACON_CHAIN).Find(ctx, filter)
+	if err != nil {
+		return nil, err
+	}
+
+	var results []*entity.ValidatorBalancesFamily
+	if err = cursor.All(ctx, &results); err != nil {
+		return nil, err
+	}
+
+	for _, result := range results {
+		// If we requested more than getAllThreshold validators we will
+		// get data for all validators and need to filter out all
+		// unwanted ones
+		if valLen >= getAllThreshold && !validatorMap[result.ValidatorId] {
+			continue
+		}
+
+		if res[result.ValidatorId] == nil {
+			res[result.ValidatorId] = make([]*types.ValidatorBalance, 0)
+		}
+
+		res[result.ValidatorId] = append(res[result.ValidatorId], &types.ValidatorBalance{
+			Epoch:            result.Epoch,
+			Balance:          result.Balance,
+			EffectiveBalance: result.EffectiveBalance,
+			Index:            result.ValidatorId,
+			PublicKey:        []byte{},
+		})
+	}
+
+	return res, nil
+}
+
+// func (mongodb *Mongo) GetValidatorAttestationHistory(validators []uint64, startEpoch uint64, endEpoch uint64) (map[uint64][]*types.ValidatorAttestation, error) {
+// 	valLen := len(validators)
+
+// 	ctx, cancel := context.WithDeadline(context.Background(), time.Now().Add(time.Minute*5))
+// 	defer cancel()
+
+// 	res := make(map[uint64][]*types.ValidatorAttestation, len(validators))
+// 	if endEpoch < startEpoch { // handle overflows
+// 		startEpoch = 0
+// 	}
+
+// 	filter := bson.D{{"chainId", mongodb.ChainId}, {"type", ATTESTATIONS_FAMILY}, {Key: "validatorId", Value: bson.D{{Key: "validatorId", Value: bson.D{{Key: "$in", Value: validators}}}}}, {Key: "epoch", Value: bson.D{{Key: "$gte", Value: startEpoch}, {Key: "$lte", Value: endEpoch}}}}
+// 	return res, nil
+// }
+
+func (mongodb *Mongo) GetValidatorSyncDutiesHistoryOrdered(validatorIndex uint64, startEpoch uint64, endEpoch uint64, reverseOrdering bool) ([]*types.ValidatorSyncParticipation, error) {
+	res, err := mongodb.GetValidatorSyncDutiesHistory([]uint64{validatorIndex}, startEpoch, endEpoch)
+	if err != nil {
+		return nil, err
+	}
+	if reverseOrdering {
+		utils.ReverseSlice(res[validatorIndex])
+	}
+	return res[validatorIndex], nil
+}
+
+func (mongodb *Mongo) GetValidatorSyncDutiesHistory(validators []uint64, startEpoch uint64, endEpoch uint64) (map[uint64][]*types.ValidatorSyncParticipation, error) {
+	ctx, cancel := context.WithDeadline(context.Background(), time.Now().Add(time.Minute*5))
+	defer cancel()
+
+	res := make(map[uint64][]*types.ValidatorSyncParticipation, len(validators))
+	if endEpoch < startEpoch { // handle overflows
+		startEpoch = 0
+	}
+
+	filter := bson.D{{Key: "chainId", Value: mongodb.ChainId}, {Key: "type", Value: SYNC_COMMITTEES_FAMILY}, {Key: "validatorId", Value: bson.D{{Key: "validatorId", Value: bson.D{{Key: "$in", Value: validators}}}}}, {Key: "epoch", Value: bson.D{{Key: "$gte", Value: startEpoch}, {Key: "$lte", Value: endEpoch}}}}
+	cursor, err := mongodb.Db.Collection(BEACON_CHAIN).Find(ctx, filter)
+	if err != nil {
+		return nil, err
+	}
+
+	var results []*entity.SyncCommitteesFamily
+	if err = cursor.All(ctx, &results); err != nil {
+		return nil, err
+	}
+
+	for _, result := range results {
+		slot := result.Slot
+		status := uint64(1)
+		validator := result.ValidatorId
+
+		if res[validator] == nil {
+			res[validator] = make([]*types.ValidatorSyncParticipation, 0)
+		}
+
+		if len(res[validator]) > 1 && res[validator][len(res[validator])-1].Slot == slot {
+			res[validator][len(res[validator])-1].Status = status
+		} else {
+			res[validator] = append(res[validator], &types.ValidatorSyncParticipation{
+				Slot:   slot,
+				Status: status,
+			})
+		}
+	}
+
+	return res, nil
+}
+
+// func (mongodb *Mongo) GetValidatorMissedAttestationsCount(validators []uint64, firstEpoch uint64, lastEpoch uint64) {
+// 	if firstEpoch > lastEpoch {
+// 		return nil, fmt.Errorf("GetValidatorMissedAttestationsCount received an invalid firstEpoch (%d) and lastEpoch (%d) combination", firstEpoch, lastEpoch)
+// 	}
+
+// 	res := make(map[uint64]*types.ValidatorMissedAttestationsStatistic)
+// 	for e := firstEpoch; e <= lastEpoch; e++ {
+// 		data, err := mongodb.GetValidatorAttestationHistory(validators, e, e)
+
+// 		if err != nil {
+// 			return nil, err
+// 		}
+// 	}
+// }

@@ -72,6 +72,9 @@ type Stats struct {
 
 type ValidatorBalancesFamily struct {
 	ID               primitive.ObjectID `json:"_id,omitempty" bson:"_id,omitempty"`
+	ChainId          string
+	Epoch            uint64
+	Type             string
 	ValidatorId      uint64
 	Balance          uint64
 	EffectiveBalance uint64
