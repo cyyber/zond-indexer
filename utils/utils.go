@@ -2,12 +2,15 @@ package utils
 
 import (
 	"fmt"
+	"math/big"
 	"os"
+	"time"
 
 	"github.com/Prajjawalk/zond-indexer/config"
 	"github.com/Prajjawalk/zond-indexer/types"
 	"github.com/kelseyhightower/envconfig"
 	"github.com/sirupsen/logrus"
+	"go.mongodb.org/mongo-driver/bson"
 	"gopkg.in/yaml.v2"
 )
 
@@ -159,4 +162,23 @@ func ReverseSlice[S ~[]E, E any](s S) {
 	for i, j := 0, len(s)-1; i < j; i, j = i+1, j-1 {
 		s[i], s[j] = s[j], s[i]
 	}
+}
+
+// EpochToTime will return a time.Time for an epoch
+func EpochToTime(epoch uint64) time.Time {
+	return time.Unix(int64(Config.Chain.GenesisTimestamp+epoch*Config.Chain.Config.SecondsPerSlot*Config.Chain.Config.SlotsPerEpoch), 0)
+}
+
+func ToDoc(v interface{}) (doc *bson.D, err error) {
+	data, err := bson.Marshal(v)
+	if err != nil {
+		return nil, err
+	}
+
+	err = bson.Unmarshal(data, &doc)
+	return
+}
+
+func AddBigInts(a, b []byte) []byte {
+	return new(big.Int).Add(new(big.Int).SetBytes(a), new(big.Int).SetBytes(b)).Bytes()
 }

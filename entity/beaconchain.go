@@ -13,7 +13,9 @@ type AttestationFamily struct {
 
 type IncomeDetailsColumnFamily struct {
 	ID                                 primitive.ObjectID `json:"_id,omitempty" bson:"_id,omitempty"`
+	ChainId                            string
 	ValidatorId                        uint64
+	Type                               string
 	AttestationSourceReward            uint64
 	AttestationSourcePenalty           uint64
 	AttestationTargetReward            uint64
@@ -29,6 +31,7 @@ type IncomeDetailsColumnFamily struct {
 	SlashingPenalty                    uint64
 	TxFeeRewardWei                     []byte
 	ProposalsMissed                    uint64
+	Timestamp                          int64
 }
 
 type ProposalsFamily struct {
@@ -53,6 +56,8 @@ type SyncCommitteesFamily struct {
 
 type Stats struct {
 	ID                                 primitive.ObjectID `json:"_id,omitempty" bson:"_id,omitempty"`
+	ChainId                            string
+	Type                               string
 	AttestationSourceReward            uint64
 	AttestationSourcePenalty           uint64
 	AttestationTargetReward            uint64
@@ -68,6 +73,7 @@ type Stats struct {
 	SlashingPenalty                    uint64
 	TxFeeRewardWei                     []byte
 	ProposalsMissed                    uint64
+	Timestamp                          int64
 }
 
 type ValidatorBalancesFamily struct {
