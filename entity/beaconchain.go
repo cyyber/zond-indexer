@@ -15,6 +15,7 @@ type IncomeDetailsColumnFamily struct {
 	ID                                 primitive.ObjectID `json:"_id,omitempty" bson:"_id,omitempty"`
 	ChainId                            string
 	ValidatorId                        uint64
+	Epoch                              uint64
 	Type                               string
 	AttestationSourceReward            uint64
 	AttestationSourcePenalty           uint64
@@ -58,6 +59,7 @@ type Stats struct {
 	ID                                 primitive.ObjectID `json:"_id,omitempty" bson:"_id,omitempty"`
 	ChainId                            string
 	Type                               string
+	Epoch                              uint64
 	AttestationSourceReward            uint64
 	AttestationSourcePenalty           uint64
 	AttestationTargetReward            uint64

@@ -872,6 +872,7 @@ func (mongodb *Mongo) SaveValidatorIncomeDetails(epoch uint64, rewards map[uint6
 			Timestamp:                          ts,
 			Type:                               INCOME_DETAILS_COLUMN_FAMILY,
 			ChainId:                            mongodb.ChainId,
+			Epoch:                              epoch,
 		})
 		if err != nil {
 			return err
@@ -900,6 +901,7 @@ func (mongodb *Mongo) SaveValidatorIncomeDetails(epoch uint64, rewards map[uint6
 	total.Timestamp = ts
 	total.Type = STATS_COLUMN_FAMILY
 	total.ChainId = mongodb.ChainId
+	total.Epoch = epoch
 
 	statsDoc, err := utils.ToDoc(total)
 	if err != nil {
@@ -912,5 +914,229 @@ func (mongodb *Mongo) SaveValidatorIncomeDetails(epoch uint64, rewards map[uint6
 	}
 
 	logger.Infof("exported validator income details for epoch %v in %v", epoch, time.Since(start))
+	return nil
+}
+
+func (mongodb *Mongo) GetEpochIncomeHistoryDescending(startEpoch uint64, endEpoch uint64) (*types.ValidatorEpochIncome, error) {
+	ctx, cancel := context.WithDeadline(context.Background(), time.Now().Add(time.Second*30))
+	defer cancel()
+
+	res := types.ValidatorEpochIncome{}
+	filter := bson.D{{Key: "chainId", Value: mongodb.ChainId}, {Key: "type", Value: STATS_COLUMN_FAMILY}, {Key: "epoch", Value: bson.D{{Key: "$gte", Value: startEpoch}, {Key: "$lte", Value: endEpoch}}}}
+	var results []entity.IncomeDetailsColumnFamily
+
+	cursor, err := mongodb.Db.Collection(BEACON_CHAIN).Find(ctx, filter)
+	if err != nil {
+		return nil, err
+	}
+
+	if err = cursor.All(ctx, &results); err != nil {
+		return nil, err
+	}
+
+	if len(results) == 0 {
+		return nil, fmt.Errorf("unable to get income history details for epoch %d", startEpoch)
+	}
+
+	res.AttestationHeadReward = results[0].AttestationHeadReward
+	res.AttestationSourceReward = results[0].AttestationSourceReward
+	res.AttestationSourcePenalty = results[0].AttestationSourcePenalty
+	res.AttestationTargetReward = results[0].AttestationTargetReward
+	res.AttestationTargetPenalty = results[0].AttestationTargetPenalty
+	res.FinalityDelayPenalty = results[0].FinalityDelayPenalty
+	res.ProposerSlashingInclusionReward = results[0].ProposerSlashingInclusionReward
+	res.ProposerAttestationInclusionReward = results[0].ProposerAttestationInclusionReward
+	res.ProposerSyncInclusionReward = results[0].ProposerSyncInclusionReward
+	res.SyncCommitteeReward = results[0].SyncCommitteeReward
+	res.SyncCommitteePenalty = results[0].SyncCommitteePenalty
+	res.SlashingReward = results[0].SlashingReward
+	res.SlashingPenalty = results[0].SlashingPenalty
+	res.TxFeeRewardWei = results[0].TxFeeRewardWei
+	res.ProposalsMissed = results[0].ProposalsMissed
+
+	return &res, nil
+}
+
+func (mongodb *Mongo) GetEpochIncomeHistory(epoch uint64) (*types.ValidatorEpochIncome, error) {
+	ctx, cancel := context.WithDeadline(context.Background(), time.Now().Add(time.Second*30))
+	defer cancel()
+
+	filter := bson.D{{Key: "chainId", Value: mongodb.ChainId}, {Key: "type", Value: STATS_COLUMN_FAMILY}, {Key: "epoch", Value: epoch}}
+	var results []entity.IncomeDetailsColumnFamily
+
+	cursor, err := mongodb.Db.Collection(BEACON_CHAIN).Find(ctx, filter)
+	if err != nil {
+		return nil, err
+	}
+
+	if err = cursor.All(ctx, &results); err != nil {
+		return nil, err
+	}
+
+	if len(results) != 0 {
+		res := types.ValidatorEpochIncome{}
+		res.AttestationHeadReward = results[0].AttestationHeadReward
+		res.AttestationSourceReward = results[0].AttestationSourceReward
+		res.AttestationSourcePenalty = results[0].AttestationSourcePenalty
+		res.AttestationTargetReward = results[0].AttestationTargetReward
+		res.AttestationTargetPenalty = results[0].AttestationTargetPenalty
+		res.FinalityDelayPenalty = results[0].FinalityDelayPenalty
+		res.ProposerSlashingInclusionReward = results[0].ProposerSlashingInclusionReward
+		res.ProposerAttestationInclusionReward = results[0].ProposerAttestationInclusionReward
+		res.ProposerSyncInclusionReward = results[0].ProposerSyncInclusionReward
+		res.SyncCommitteeReward = results[0].SyncCommitteeReward
+		res.SyncCommitteePenalty = results[0].SyncCommitteePenalty
+		res.SlashingReward = results[0].SlashingReward
+		res.SlashingPenalty = results[0].SlashingPenalty
+		res.TxFeeRewardWei = results[0].TxFeeRewardWei
+		res.ProposalsMissed = results[0].ProposalsMissed
+		return &res, nil
+	}
+
+	// if there is no result we have to calculate the sum
+	income, err := mongodb.GetValidatorIncomeDetailsHistory([]uint64{}, epoch, 1)
+	if err != nil {
+		logger.WithError(err).Error("error getting validator income history")
+	}
+
+	total := &types.ValidatorEpochIncome{}
+
+	for _, epochs := range income {
+		for _, details := range epochs {
+			total.AttestationHeadReward += details.AttestationHeadReward
+			total.AttestationSourceReward += details.AttestationSourceReward
+			total.AttestationSourcePenalty += details.AttestationSourcePenalty
+			total.AttestationTargetReward += details.AttestationTargetReward
+			total.AttestationTargetPenalty += details.AttestationTargetPenalty
+			total.FinalityDelayPenalty += details.FinalityDelayPenalty
+			total.ProposerSlashingInclusionReward += details.ProposerSlashingInclusionReward
+			total.ProposerAttestationInclusionReward += details.ProposerAttestationInclusionReward
+			total.ProposerSyncInclusionReward += details.ProposerSyncInclusionReward
+			total.SyncCommitteeReward += details.SyncCommitteeReward
+			total.SyncCommitteePenalty += details.SyncCommitteePenalty
+			total.SlashingReward += details.SlashingReward
+			total.SlashingPenalty += details.SlashingPenalty
+			total.TxFeeRewardWei = utils.AddBigInts(total.TxFeeRewardWei, details.TxFeeRewardWei)
+		}
+	}
+
+	return total, nil
+}
+
+// GetValidatorIncomeDetailsHistory returns the validator income details
+// startEpoch & endEpoch are inclusive
+func (mongodb *Mongo) GetValidatorIncomeDetailsHistory(validators []uint64, startEpoch uint64, endEpoch uint64) (map[uint64]map[uint64]*types.ValidatorEpochIncome, error) {
+	if startEpoch > endEpoch {
+		startEpoch = 0
+	}
+
+	ctx, cancel := context.WithTimeout(context.Background(), time.Second*180)
+	defer cancel()
+
+	// logger.Infof("range: %v to %v", rangeStart, rangeEnd)
+	res := make(map[uint64]map[uint64]*types.ValidatorEpochIncome, len(validators))
+
+	filter := bson.D{{Key: "chainId", Value: mongodb.ChainId}, {Key: "type", Value: INCOME_DETAILS_COLUMN_FAMILY}, {Key: "validatorId", Value: bson.D{{Key: "validatorId", Value: bson.D{{Key: "$in", Value: validators}}}}}, {Key: "epoch", Value: bson.D{{Key: "$gte", Value: startEpoch}, {Key: "$lte", Value: endEpoch}}}}
+	cursor, err := mongodb.Db.Collection(BEACON_CHAIN).Find(ctx, filter)
+	if err != nil {
+		return nil, err
+	}
+
+	var results []*entity.IncomeDetailsColumnFamily
+	if err = cursor.All(ctx, &results); err != nil {
+		return nil, err
+	}
+
+	for _, result := range results {
+		epoch := result.Epoch
+		validator := result.ValidatorId
+		incomeDetails := &types.ValidatorEpochIncome{}
+		incomeDetails.AttestationHeadReward = result.AttestationHeadReward
+		incomeDetails.AttestationSourceReward = result.AttestationSourceReward
+		incomeDetails.AttestationSourcePenalty = result.AttestationSourcePenalty
+		incomeDetails.AttestationTargetReward = result.AttestationTargetReward
+		incomeDetails.AttestationTargetPenalty = result.AttestationTargetPenalty
+		incomeDetails.FinalityDelayPenalty = result.FinalityDelayPenalty
+		incomeDetails.ProposerSlashingInclusionReward = result.ProposerSlashingInclusionReward
+		incomeDetails.ProposerAttestationInclusionReward = result.ProposerAttestationInclusionReward
+		incomeDetails.ProposerSyncInclusionReward = result.ProposerSyncInclusionReward
+		incomeDetails.SyncCommitteeReward = result.SyncCommitteeReward
+		incomeDetails.SyncCommitteePenalty = result.SyncCommitteePenalty
+		incomeDetails.SlashingReward = result.SlashingReward
+		incomeDetails.SlashingPenalty = result.SlashingPenalty
+		incomeDetails.TxFeeRewardWei = result.TxFeeRewardWei
+		incomeDetails.ProposalsMissed = result.ProposalsMissed
+
+		if res[validator] == nil {
+			res[validator] = make(map[uint64]*types.ValidatorEpochIncome)
+		}
+
+		res[validator][epoch] = incomeDetails
+	}
+
+	return res, nil
+}
+
+func (mongodb *Mongo) GetAggregatedValidatorIncomeDetailsHistory(validators []uint64, startEpoch uint64, endEpoch uint64) (map[uint64]*types.ValidatorEpochIncome, error) {
+	if startEpoch > endEpoch {
+		startEpoch = 0
+	}
+
+	ctx, cancel := context.WithDeadline(context.Background(), time.Now().Add(time.Minute*10))
+	defer cancel()
+	incomeStats := make(map[uint64]*types.ValidatorEpochIncome, len(validators))
+	filter := bson.D{{Key: "chainId", Value: mongodb.ChainId}, {Key: "type", Value: INCOME_DETAILS_COLUMN_FAMILY}, {Key: "validatorId", Value: bson.D{{Key: "validatorId", Value: bson.D{{Key: "$in", Value: validators}}}}}, {Key: "epoch", Value: bson.D{{Key: "$gte", Value: startEpoch}, {Key: "$lte", Value: endEpoch}}}}
+	cursor, err := mongodb.Db.Collection(BEACON_CHAIN).Find(ctx, filter)
+	if err != nil {
+		return nil, err
+	}
+
+	var results []*entity.IncomeDetailsColumnFamily
+	if err = cursor.All(ctx, &results); err != nil {
+		return nil, err
+	}
+
+	start := time.Now()
+	for _, result := range results {
+		epoch := result.Epoch
+		validator := result.ValidatorId
+
+		if incomeStats[validator] == nil {
+			incomeStats[validator] = &types.ValidatorEpochIncome{}
+		}
+
+		incomeStats[validator].AttestationHeadReward += result.AttestationHeadReward
+		incomeStats[validator].AttestationSourceReward += result.AttestationSourceReward
+		incomeStats[validator].AttestationSourcePenalty += result.AttestationSourcePenalty
+		incomeStats[validator].AttestationTargetReward += result.AttestationTargetReward
+		incomeStats[validator].AttestationTargetPenalty += result.AttestationTargetPenalty
+		incomeStats[validator].FinalityDelayPenalty += result.FinalityDelayPenalty
+		incomeStats[validator].ProposerSlashingInclusionReward += result.ProposerSlashingInclusionReward
+		incomeStats[validator].ProposerAttestationInclusionReward += result.ProposerAttestationInclusionReward
+		incomeStats[validator].ProposerSyncInclusionReward += result.ProposerSyncInclusionReward
+		incomeStats[validator].SyncCommitteeReward += result.SyncCommitteeReward
+		incomeStats[validator].SyncCommitteePenalty += result.SyncCommitteePenalty
+		incomeStats[validator].SlashingReward += result.SlashingReward
+		incomeStats[validator].SlashingPenalty += result.SlashingPenalty
+		incomeStats[validator].TxFeeRewardWei = utils.AddBigInts(incomeStats[validator].TxFeeRewardWei, result.TxFeeRewardWei)
+
+		logger.Infof("processed income data for epoch %v in %v", epoch, time.Since(start))
+	}
+
+	return incomeStats, nil
+}
+
+func (mongodb *Mongo) DeleteEpoch(epoch uint64) error {
+	// First receive all keys that were written by this block (entities & indices)
+	startSlot := epoch * utils.Config.Chain.Config.SlotsPerEpoch
+	endSlot := (epoch+1)*utils.Config.Chain.Config.SlotsPerEpoch - 1
+	logger.Infof("deleting epoch %v (slot %v to %v)", epoch, startSlot, endSlot)
+
+	filter := bson.D{{Key: "Epoch", Value: epoch}}
+	res, err := mongodb.Db.Collection(BEACON_CHAIN).DeleteMany(context.TODO(), filter)
+	if err != nil {
+		return err
+	}
+	logger.Infof("deleted %v documents\n", res.DeletedCount)
 	return nil
 }

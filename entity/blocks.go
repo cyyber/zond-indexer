@@ -1,27 +1,12 @@
 package entity
 
-import "go.mongodb.org/mongo-driver/bson/primitive"
+import (
+	"github.com/Prajjawalk/zond-indexer/types"
+)
 
 type BlockData struct {
-	Hash         []byte
-	ParentHash   []byte
-	UncleHash    []byte
-	Coinbase     []byte
-	Root         []byte
-	TxHash       []byte
-	ReceiptHash  []byte
-	Difficulty   []byte
-	Number       uint64
-	GasLimit     uint64
-	GasUsed      uint64
-	Time         primitive.DateTime
-	Extra        []byte
-	MixDigest    []byte
-	Bloom        []byte
-	BaseFee      []byte
-	Uncles       []*BlockData
-	Transactions []*Eth1Transaction
-	Withdrawals  []*Eth1Withdrawal
+	ChainId   string
+	Eth1Block types.Eth1Block
 }
 
 type Eth1Transaction struct {
