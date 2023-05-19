@@ -3,25 +3,26 @@ package entity
 import "go.mongodb.org/mongo-driver/bson/primitive"
 
 type BlockIndex struct {
-	Chainid          uint64
-	Type             string
-	Hash             []byte
-	ParentHash       []byte
-	UncleHash        []byte
-	Coinbase         []byte
-	Difficulty       []byte
-	Number           uint64
-	GasLimit         uint64
-	GasUsed          uint64
-	Time             primitive.Timestamp
-	BaseFee          []byte
-	UncleCount       uint64
-	TransactionCount uint64
-	Mev              []byte
-	LowestGasPrice   []byte
-	HighestGasPrice  []byte
-	TxReward         []byte
-	UncleReward      []byte
+	Chainid                  uint64
+	Type                     string
+	Hash                     []byte
+	ParentHash               []byte
+	UncleHash                []byte
+	Coinbase                 []byte
+	Difficulty               []byte
+	Number                   uint64
+	GasLimit                 uint64
+	GasUsed                  uint64
+	Time                     primitive.Timestamp
+	BaseFee                  []byte
+	UncleCount               uint64
+	TransactionCount         uint64
+	Mev                      []byte
+	LowestGasPrice           []byte
+	HighestGasPrice          []byte
+	TxReward                 []byte
+	UncleReward              []byte
+	InternalTransactionCount uint64
 }
 
 type TransactionIndex struct {
