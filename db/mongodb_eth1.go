@@ -508,9 +508,7 @@ func (mongodb *Mongo) TransformBlock(block *types.Eth1Block, cache *freecache.Ca
 
 	indexes := []mongo.IndexModel{{Keys: bson.D{{Key: "coinbase", Value: -1}, {Key: "time", Value: -1}}}}
 
-	for _, idx := range indexes {
-		bulkData = append(bulkData, idx)
-	}
+	mongodb.Db.Collection(DATA).Indexes().CreateMany(context.TODO(), indexes)
 
 	return bulkData, bulkMetadataUpdates, nil
 }
@@ -552,6 +550,69 @@ func CalculateTxFeeFromTransaction(tx *types.Eth1Transaction, blockBaseFee *big.
 		txFee.Mul(txFee, new(big.Int).SetBytes(tx.GasPrice))
 	}
 	return txFee
+}
+
+func (mongodb *Mongo) TransformTx(blk *types.Eth1Block, cache *freecache.Cache) (interface{}, interface{}, error) {
+	var bulkData []mongo.WriteModel
+	var bulkMetadataUpdates []mongo.WriteModel
+
+	for i, tx := range blk.Transactions {
+		if i > 9999 {
+			return nil, nil, fmt.Errorf("unexpected number of transactions in block expected at most 9999 but got: %v, tx: %x", i, tx.GetHash())
+		}
+
+		to := tx.GetTo()
+		isContract := false
+		if !bytes.Equal(tx.GetContractAddress(), ZERO_ADDRESS) {
+			to = tx.GetContractAddress()
+			isContract = true
+		}
+		// logger.Infof("sending to: %x", to)
+		invokesContract := false
+		if len(tx.GetItx()) > 0 || tx.GetGasUsed() > 21000 || tx.GetErrorMsg() != "" {
+			invokesContract = true
+		}
+
+		method := make([]byte, 0)
+		if len(tx.GetData()) > 3 {
+			method = tx.GetData()[:4]
+		}
+		fee := new(big.Int).Mul(new(big.Int).SetBytes(tx.GetGasPrice()), big.NewInt(int64(tx.GetGasUsed()))).Bytes()
+
+		indexedTx := &entity.TransactionIndex{
+			Hash:               tx.GetHash(),
+			BlockNumber:        blk.GetNumber(),
+			Time:               primitive.Timestamp{T: uint32(blk.GetTime().AsTime().Unix()), I: 0},
+			MethodId:           method,
+			From:               tx.GetFrom(),
+			To:                 to,
+			Value:              tx.GetValue(),
+			TxFee:              fee,
+			GasPrice:           tx.GetGasPrice(),
+			IsContractCreation: isContract,
+			InvokesContract:    invokesContract,
+			ErrorMsg:           tx.GetErrorMsg(),
+		}
+
+		// Mark Sender and Recipient for balance update
+		mongodb.markBalanceUpdate(indexedTx.From, []byte{0x0}, bulkMetadataUpdates, cache)
+		mongodb.markBalanceUpdate(indexedTx.To, []byte{0x0}, bulkMetadataUpdates, cache)
+
+		if len(indexedTx.Hash) != 32 {
+			logger.Fatalf("retrieved hash of length %v for a tx in block %v", len(indexedTx.Hash), blk.GetNumber())
+		}
+
+		doc, err := utils.ToDoc(indexedTx)
+		if err != nil {
+			return nil, nil, err
+		}
+		insertBlock := mongo.NewInsertOneModel().SetDocument(doc)
+		bulkData = append(bulkData, insertBlock)
+		indexes := []mongo.IndexModel{{Keys: bson.D{{Key: "to", Value: -1}, {Key: "time", Value: -1}, {Key: "block", Value: -1}, {Key: "method", Value: -1}, {Key: "from", Value: -1}, {Key: "iscontractcreation", Value: -1}, {Key: "errormsg", Value: -1}}}}
+		mongodb.Db.Collection(DATA).Indexes().CreateMany(context.TODO(), indexes)
+	}
+
+	return bulkData, bulkMetadataUpdates, nil
 }
 
 func (mongodb *Mongo) markBalanceUpdate(address []byte, token []byte, mutations interface{}, cache *freecache.Cache) {
