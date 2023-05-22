@@ -1,14 +1,21 @@
 package db
 
 import (
+	"bytes"
 	"context"
 	"fmt"
+	"math/big"
 	"time"
 
 	"github.com/Prajjawalk/zond-indexer/entity"
 	"github.com/Prajjawalk/zond-indexer/types"
 	"github.com/Prajjawalk/zond-indexer/utils"
+	"github.com/coocood/freecache"
+	"github.com/ethereum/go-ethereum/common"
+	"github.com/ethereum/go-ethereum/common/math"
 	"go.mongodb.org/mongo-driver/bson"
+	"go.mongodb.org/mongo-driver/bson/primitive"
+	"go.mongodb.org/mongo-driver/mongo"
 	"go.mongodb.org/mongo-driver/mongo/options"
 	"google.golang.org/protobuf/types/known/timestamppb"
 )
@@ -382,4 +389,182 @@ func (mongodb *Mongo) GetBlocksDescending(start, limit uint64) ([]*types.Eth1Blo
 		}
 	}
 	return blocks, nil
+}
+
+func (mongodb *Mongo) TransformBlock(block *types.Eth1Block, cache *freecache.Cache) (interface{}, interface{}, error) {
+	var bulkData []mongo.WriteModel
+	var bulkMetadataUpdates []mongo.WriteModel
+
+	idx := entity.BlockIndex{
+		ChainId:    mongodb.ChainId,
+		Type:       "blockindex",
+		Hash:       block.GetHash(),
+		ParentHash: block.GetParentHash(),
+		UncleHash:  block.GetUncleHash(),
+		Coinbase:   block.GetCoinbase(),
+		Difficulty: block.GetDifficulty(),
+		Number:     block.GetNumber(),
+		GasLimit:   block.GetGasLimit(),
+		GasUsed:    block.GetGasUsed(),
+		Time:       primitive.Timestamp{T: uint32(block.GetTime().AsTime().Unix()), I: 0},
+		BaseFee:    block.GetBaseFee(),
+		// Duration:               uint64(block.GetTime().AsTime().Unix() - previous.GetTime().AsTime().Unix()),
+		UncleCount:       uint64(len(block.GetUncles())),
+		TransactionCount: uint64(len(block.GetTransactions())),
+		// BaseFeeChange:          new(big.Int).Sub(new(big.Int).SetBytes(block.GetBaseFee()), new(big.Int).SetBytes(previous.GetBaseFee())).Bytes(),
+		// BlockUtilizationChange: new(big.Int).Sub(new(big.Int).Div(big.NewInt(int64(block.GetGasUsed())), big.NewInt(int64(block.GetGasLimit()))), new(big.Int).Div(big.NewInt(int64(previous.GetGasUsed())), big.NewInt(int64(previous.GetGasLimit())))).Bytes(),
+	}
+
+	uncleReward := big.NewInt(0)
+	r := new(big.Int)
+
+	for _, uncle := range block.Uncles {
+
+		if len(block.Difficulty) == 0 { // no uncle rewards in PoS
+			continue
+		}
+
+		r.Add(big.NewInt(int64(uncle.GetNumber())), big.NewInt(8))
+		r.Sub(r, big.NewInt(int64(block.GetNumber())))
+		r.Mul(r, utils.Eth1BlockReward(block.GetNumber(), block.Difficulty))
+		r.Div(r, big.NewInt(8))
+
+		r.Div(utils.Eth1BlockReward(block.GetNumber(), block.Difficulty), big.NewInt(32))
+		uncleReward.Add(uncleReward, r)
+	}
+
+	idx.UncleReward = uncleReward.Bytes()
+
+	var maxGasPrice *big.Int
+	var minGasPrice *big.Int
+	txReward := big.NewInt(0)
+
+	for _, t := range block.GetTransactions() {
+		price := new(big.Int).SetBytes(t.GasPrice)
+
+		if minGasPrice == nil {
+			minGasPrice = price
+		}
+		if maxGasPrice == nil {
+			maxGasPrice = price
+		}
+
+		if price.Cmp(maxGasPrice) > 0 {
+			maxGasPrice = price
+		}
+
+		if price.Cmp(minGasPrice) < 0 {
+			minGasPrice = price
+		}
+
+		txFee := new(big.Int).Mul(new(big.Int).SetBytes(t.GasPrice), big.NewInt(int64(t.GasUsed)))
+
+		if len(block.BaseFee) > 0 {
+			effectiveGasPrice := math.BigMin(new(big.Int).Add(new(big.Int).SetBytes(t.MaxPriorityFeePerGas), new(big.Int).SetBytes(block.BaseFee)), new(big.Int).SetBytes(t.MaxFeePerGas))
+			proposerGasPricePart := new(big.Int).Sub(effectiveGasPrice, new(big.Int).SetBytes(block.BaseFee))
+
+			if proposerGasPricePart.Cmp(big.NewInt(0)) >= 0 {
+				txFee = new(big.Int).Mul(proposerGasPricePart, big.NewInt(int64(t.GasUsed)))
+			} else {
+				logger.Errorf("error minerGasPricePart is below 0 for tx %v: %v", t.Hash, proposerGasPricePart)
+				txFee = big.NewInt(0)
+			}
+
+		}
+
+		txReward.Add(txReward, txFee)
+
+		for _, itx := range t.Itx {
+			if itx.Path == "[]" || bytes.Equal(itx.Value, []byte{0x0}) { // skip top level call & empty calls
+				continue
+			}
+			idx.InternalTransactionCount++
+		}
+	}
+
+	idx.TxReward = txReward.Bytes()
+
+	// logger.Infof("tx reward for block %v is %v", block.Number, txReward.String())
+
+	if maxGasPrice != nil {
+		idx.LowestGasPrice = minGasPrice.Bytes()
+
+	}
+	if minGasPrice != nil {
+		idx.HighestGasPrice = maxGasPrice.Bytes()
+	}
+
+	idx.Mev = CalculateMevFromBlock(block).Bytes()
+
+	// Mark Coinbase for balance update
+	mongodb.markBalanceUpdate(idx.Coinbase, []byte{0x0}, &bulkMetadataUpdates, cache)
+
+	doc, err := utils.ToDoc(idx)
+	if err != nil {
+		return nil, nil, err
+	}
+	insertBlock := mongo.NewInsertOneModel().SetDocument(doc)
+	bulkData = append(bulkData, insertBlock)
+
+	indexes := []mongo.IndexModel{{Keys: bson.D{{Key: "coinbase", Value: -1}, {Key: "time", Value: -1}}}}
+
+	for _, idx := range indexes {
+		bulkData = append(bulkData, idx)
+	}
+
+	return bulkData, bulkMetadataUpdates, nil
+}
+
+func CalculateMevFromBlock(block *types.Eth1Block) *big.Int {
+	mevReward := big.NewInt(0)
+
+	for _, tx := range block.GetTransactions() {
+		for _, itx := range tx.GetItx() {
+			//log.Printf("%v - %v", common.HexToAddress(itx.To), common.HexToAddress(block.Miner))
+			if common.BytesToAddress(itx.To) == common.BytesToAddress(block.GetCoinbase()) {
+				mevReward = new(big.Int).Add(mevReward, new(big.Int).SetBytes(itx.GetValue()))
+			}
+		}
+
+	}
+	return mevReward
+}
+
+func CalculateTxFeesFromBlock(block *types.Eth1Block) *big.Int {
+	txFees := new(big.Int)
+	for _, tx := range block.Transactions {
+		txFees.Add(txFees, CalculateTxFeeFromTransaction(tx, new(big.Int).SetBytes(block.BaseFee)))
+	}
+	return txFees
+}
+
+func CalculateTxFeeFromTransaction(tx *types.Eth1Transaction, blockBaseFee *big.Int) *big.Int {
+	// calculate tx fee depending on tx type
+	txFee := new(big.Int).SetUint64(tx.GasUsed)
+	if tx.Type == uint32(2) {
+		// multiply gasused with min(baseFee + maxpriorityfee, maxfee)
+		if normalGasPrice, maxGasPrice := new(big.Int).Add(blockBaseFee, new(big.Int).SetBytes(tx.MaxPriorityFeePerGas)), new(big.Int).SetBytes(tx.MaxFeePerGas); normalGasPrice.Cmp(maxGasPrice) <= 0 {
+			txFee.Mul(txFee, normalGasPrice)
+		} else {
+			txFee.Mul(txFee, maxGasPrice)
+		}
+	} else {
+		txFee.Mul(txFee, new(big.Int).SetBytes(tx.GasPrice))
+	}
+	return txFee
+}
+
+func (mongodb *Mongo) markBalanceUpdate(address []byte, token []byte, mutations interface{}, cache *freecache.Cache) {
+	balanceUpdateCacheKey := []byte(fmt.Sprintf("%s:B:%x:%x", mongodb.ChainId, address, token)) // format is B: for balance update as chainid:prefix:address (token id will be encoded as column name)
+	if _, err := cache.Get(balanceUpdateCacheKey); err != nil {
+		update := entity.BalanceUpdates{
+			ChainId: mongodb.ChainId,
+			Token:   token,
+			Address: address,
+		}
+		doc, _ := utils.ToDoc(update)
+		insertBlock := mongo.NewInsertOneModel().SetDocument(doc)
+		mutations = append([]interface{}{mutations}, insertBlock)
+		cache.Set(balanceUpdateCacheKey, []byte{0x1}, int((time.Hour * 48).Seconds()))
+	}
 }

@@ -59,6 +59,13 @@ type Series struct {
 	Rapid    []byte
 }
 
+type BalanceUpdates struct {
+	ID      primitive.ObjectID `json:"_id,omitempty" bson:"_id,omitempty"`
+	ChainId string
+	Token   []byte
+	Address []byte
+}
+
 type BlockMetadataUpdates struct {
 	ID          primitive.ObjectID `json:"_id,omitempty" bson:"_id,omitempty"`
 	BlockNumber uint64

@@ -3,7 +3,7 @@ package entity
 import "go.mongodb.org/mongo-driver/bson/primitive"
 
 type BlockIndex struct {
-	Chainid                  uint64
+	ChainId                  string
 	Type                     string
 	Hash                     []byte
 	ParentHash               []byte
