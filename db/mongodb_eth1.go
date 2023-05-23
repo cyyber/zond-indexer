@@ -4,15 +4,21 @@ import (
 	"bytes"
 	"context"
 	"fmt"
+	"log"
 	"math/big"
 	"time"
 
 	"github.com/Prajjawalk/zond-indexer/entity"
+	"github.com/Prajjawalk/zond-indexer/erc1155"
+	"github.com/Prajjawalk/zond-indexer/erc20"
+	"github.com/Prajjawalk/zond-indexer/erc721"
 	"github.com/Prajjawalk/zond-indexer/types"
 	"github.com/Prajjawalk/zond-indexer/utils"
 	"github.com/coocood/freecache"
 	"github.com/ethereum/go-ethereum/common"
 	"github.com/ethereum/go-ethereum/common/math"
+	eth_types "github.com/ethereum/go-ethereum/core/types"
+	"github.com/sirupsen/logrus"
 	"go.mongodb.org/mongo-driver/bson"
 	"go.mongodb.org/mongo-driver/bson/primitive"
 	"go.mongodb.org/mongo-driver/mongo"
@@ -506,9 +512,26 @@ func (mongodb *Mongo) TransformBlock(block *types.Eth1Block, cache *freecache.Ca
 	insertBlock := mongo.NewInsertOneModel().SetDocument(doc)
 	bulkData = append(bulkData, insertBlock)
 
-	indexes := []mongo.IndexModel{{Keys: bson.D{{Key: "coinbase", Value: -1}, {Key: "time", Value: -1}}}}
+	indexes := []string{
+		// Index blocks by the miners address
+		fmt.Sprintf("%s:I:B:%x:TIME:%s", mongodb.ChainId, block.GetCoinbase(), block.Time),
+	}
 
-	mongodb.Db.Collection(DATA).Indexes().CreateMany(context.TODO(), indexes)
+	blockIdentifier := fmt.Sprintf("%s:B:%09d", mongodb.ChainId, block.GetNumber())
+
+	for _, idx := range indexes {
+		mut := &entity.Indexes{
+			Type:  "index",
+			Key:   idx,
+			Value: blockIdentifier,
+		}
+		doc, err := utils.ToDoc(mut)
+		if err != nil {
+			return nil, nil, err
+		}
+		insertBlock := mongo.NewInsertOneModel().SetDocument(doc)
+		bulkData = append(bulkData, insertBlock)
+	}
 
 	return bulkData, bulkMetadataUpdates, nil
 }
@@ -580,6 +603,8 @@ func (mongodb *Mongo) TransformTx(blk *types.Eth1Block, cache *freecache.Cache) 
 		fee := new(big.Int).Mul(new(big.Int).SetBytes(tx.GetGasPrice()), big.NewInt(int64(tx.GetGasUsed()))).Bytes()
 
 		indexedTx := &entity.TransactionIndex{
+			ChainId:            mongodb.ChainId,
+			Type:               "transactionindex",
 			Hash:               tx.GetHash(),
 			BlockNumber:        blk.GetNumber(),
 			Time:               primitive.Timestamp{T: uint32(blk.GetTime().AsTime().Unix()), I: 0},
@@ -608,8 +633,557 @@ func (mongodb *Mongo) TransformTx(blk *types.Eth1Block, cache *freecache.Cache) 
 		}
 		insertBlock := mongo.NewInsertOneModel().SetDocument(doc)
 		bulkData = append(bulkData, insertBlock)
-		indexes := []mongo.IndexModel{{Keys: bson.D{{Key: "to", Value: -1}, {Key: "time", Value: -1}, {Key: "block", Value: -1}, {Key: "method", Value: -1}, {Key: "from", Value: -1}, {Key: "iscontractcreation", Value: -1}, {Key: "errormsg", Value: -1}}}}
-		mongodb.Db.Collection(DATA).Indexes().CreateMany(context.TODO(), indexes)
+		// indexes := []mongo.IndexModel{{Keys: bson.D{{Key: "to", Value: -1}, {Key: "time", Value: -1}, {Key: "block", Value: -1}, {Key: "method", Value: -1}, {Key: "from", Value: -1}, {Key: "iscontractcreation", Value: -1}, {Key: "errormsg", Value: -1}}}}
+		indexes := []string{
+			fmt.Sprintf("%s:I:TX:%x:TO:%x:%s:%019d", mongodb.ChainId, tx.GetFrom(), to, blk.GetTime(), i),
+			fmt.Sprintf("%s:I:TX:%x:TIME:%s:%019d", mongodb.ChainId, tx.GetFrom(), blk.GetTime(), i),
+			fmt.Sprintf("%s:I:TX:%x:BLOCK:%09d:%d", mongodb.ChainId, tx.GetFrom(), blk.GetNumber(), i),
+			fmt.Sprintf("%s:I:TX:%x:METHOD:%x:%019d:%d", mongodb.ChainId, tx.GetFrom(), method, blk.GetTime(), i),
+			fmt.Sprintf("%s:I:TX:%x:FROM:%x:%019d:%d", mongodb.ChainId, to, tx.GetFrom(), blk.GetTime(), i),
+			fmt.Sprintf("%s:I:TX:%x:TIME:%019d:%d", mongodb.ChainId, to, blk.GetTime(), i),
+			fmt.Sprintf("%s:I:TX:%x:BLOCK:%09d:%d", mongodb.ChainId, to, blk.GetNumber(), i),
+			fmt.Sprintf("%s:I:TX:%x:METHOD:%x:%019d:%d", mongodb.ChainId, to, method, blk.GetTime(), i),
+		}
+
+		if indexedTx.ErrorMsg != "" {
+			indexes = append(indexes, fmt.Sprintf("%s:I:TX:%x:ERROR:%019d:%d", mongodb.ChainId, tx.GetFrom(), blk.GetTime(), i))
+			indexes = append(indexes, fmt.Sprintf("%s:I:TX:%x:ERROR:%019d:%d", mongodb.ChainId, to, blk.GetTime(), i))
+		}
+
+		if indexedTx.IsContractCreation {
+			indexes = append(indexes, fmt.Sprintf("%s:I:TX:%x:CONTRACT:%019d:%d", mongodb.ChainId, tx.GetFrom(), blk.GetTime(), i))
+			indexes = append(indexes, fmt.Sprintf("%s:I:TX:%x:CONTRACT:%019d:%d", mongodb.ChainId, to, blk.GetTime(), i))
+		}
+
+		txIdentifier := fmt.Sprintf("%s:TX:%x", mongodb.ChainId, tx.GetHash())
+
+		for _, idx := range indexes {
+			mut := &entity.Indexes{
+				Type:  "index",
+				Key:   idx,
+				Value: txIdentifier,
+			}
+			doc, err := utils.ToDoc(mut)
+			if err != nil {
+				return nil, nil, err
+			}
+			insertBlock := mongo.NewInsertOneModel().SetDocument(doc)
+			bulkData = append(bulkData, insertBlock)
+		}
+	}
+
+	return bulkData, bulkMetadataUpdates, nil
+}
+
+func (mongodb *Mongo) TransformItx(blk *types.Eth1Block, cache *freecache.Cache) (interface{}, interface{}, error) {
+	var bulkData []mongo.WriteModel
+	var bulkMetadataUpdates []mongo.WriteModel
+
+	for i, tx := range blk.GetTransactions() {
+		if i > 9999 {
+			return nil, nil, fmt.Errorf("unexpected number of transactions in block expected at most 9999 but got: %v, tx: %x", i, tx.GetHash())
+		}
+		for j, idx := range tx.GetItx() {
+			if j > 999999 {
+				return nil, nil, fmt.Errorf("unexpected number of internal transactions in block expected at most 999999 but got: %v, tx: %x", j, tx.GetHash())
+			}
+
+			if idx.Path == "[]" || bytes.Equal(idx.Value, []byte{0x0}) { // skip top level call & empty calls
+				continue
+			}
+			indexedItx := &entity.InternalTransactionIndex{
+				ChainId:     mongodb.ChainId,
+				ParentHash:  tx.GetHash(),
+				BlockNumber: blk.GetNumber(),
+				Time:        primitive.Timestamp{T: uint32(blk.GetTime().AsTime().Unix()), I: 0},
+				Type:        idx.GetType(),
+				From:        idx.GetFrom(),
+				To:          idx.GetTo(),
+				Value:       idx.GetValue(),
+			}
+			mongodb.markBalanceUpdate(indexedItx.To, []byte{0x0}, bulkMetadataUpdates, cache)
+			mongodb.markBalanceUpdate(indexedItx.From, []byte{0x0}, bulkMetadataUpdates, cache)
+
+			doc, err := utils.ToDoc(indexedItx)
+			if err != nil {
+				return nil, nil, err
+			}
+			insertBlock := mongo.NewInsertOneModel().SetDocument(doc)
+			bulkData = append(bulkData, insertBlock)
+
+			indexes := []string{
+				fmt.Sprintf("%s:I:ITX:%x:TO:%x:%019d:%d:%d", mongodb.ChainId, idx.GetFrom(), idx.GetTo(), blk.GetTime(), i, j),
+				fmt.Sprintf("%s:I:ITX:%x:FROM:%x:%019d:%d:%d", mongodb.ChainId, idx.GetTo(), idx.GetFrom(), blk.GetTime(), i, j),
+				fmt.Sprintf("%s:I:ITX:%x:TIME:%019d:%d:%d", mongodb.ChainId, idx.GetFrom(), blk.GetTime(), i, j),
+				fmt.Sprintf("%s:I:ITX:%x:TIME:%019d:%d:%d", mongodb.ChainId, idx.GetTo(), blk.GetTime(), i, j),
+			}
+
+			itxIdentifier := fmt.Sprintf("%s:ITX:%x:%d", mongodb.ChainId, tx.GetHash(), j)
+			for _, idx := range indexes {
+				mut := &entity.Indexes{
+					Type:  "index",
+					Key:   idx,
+					Value: itxIdentifier,
+				}
+				doc, err := utils.ToDoc(mut)
+				if err != nil {
+					return nil, nil, err
+				}
+				insertBlock := mongo.NewInsertOneModel().SetDocument(doc)
+				bulkData = append(bulkData, insertBlock)
+			}
+
+		}
+	}
+
+	return bulkData, bulkMetadataUpdates, nil
+}
+
+func (mongodb *Mongo) TransformERC20(blk *types.Eth1Block, cache *freecache.Cache) (interface{}, interface{}, error) {
+	var bulkData []mongo.WriteModel
+	var bulkMetadataUpdates []mongo.WriteModel
+
+	filterer, err := erc20.NewErc20Filterer(common.Address{}, nil)
+	if err != nil {
+		log.Printf("error creating filterer: %v", err)
+	}
+
+	for i, tx := range blk.GetTransactions() {
+		if i > 9999 {
+			return nil, nil, fmt.Errorf("unexpected number of transactions in block expected at most 9999 but got: %v, tx: %x", i, tx.GetHash())
+		}
+
+		for j, log := range tx.GetLogs() {
+			if j > 99999 {
+				return nil, nil, fmt.Errorf("unexpected number of logs in block expected at most 99999 but got: %v tx: %x", j, tx.GetHash())
+			}
+
+			if len(log.GetTopics()) != 3 || !bytes.Equal(log.GetTopics()[0], erc20.TransferTopic) {
+				continue
+			}
+
+			topics := make([]common.Hash, 0, len(log.GetTopics()))
+
+			for _, lTopic := range log.GetTopics() {
+				topics = append(topics, common.BytesToHash(lTopic))
+			}
+
+			ethLog := eth_types.Log{
+				Address:     common.BytesToAddress(log.GetAddress()),
+				Data:        log.Data,
+				Topics:      topics,
+				BlockNumber: blk.GetNumber(),
+				TxHash:      common.BytesToHash(tx.GetHash()),
+				TxIndex:     uint(i),
+				BlockHash:   common.BytesToHash(blk.GetHash()),
+				Index:       uint(j),
+				Removed:     log.GetRemoved(),
+			}
+			transfer, _ := filterer.ParseTransfer(ethLog)
+			if transfer == nil {
+				continue
+			}
+
+			value := []byte{}
+			if transfer != nil && transfer.Value != nil {
+				value = transfer.Value.Bytes()
+			}
+			indexedLog := &entity.ERC20Index{
+				ChainId:      mongodb.ChainId,
+				Type:         "erc20index",
+				ParentHash:   tx.GetHash(),
+				BlockNumber:  blk.GetNumber(),
+				Time:         primitive.Timestamp{T: uint32(blk.GetTime().AsTime().Unix()), I: 0},
+				TokenAddress: log.Address,
+				From:         transfer.From.Bytes(),
+				To:           transfer.To.Bytes(),
+				Value:        value,
+			}
+			mongodb.markBalanceUpdate(indexedLog.From, indexedLog.TokenAddress, bulkMetadataUpdates, cache)
+			mongodb.markBalanceUpdate(indexedLog.To, indexedLog.TokenAddress, bulkMetadataUpdates, cache)
+			doc, err := utils.ToDoc(indexedLog)
+			if err != nil {
+				return nil, nil, err
+			}
+			insertBlock := mongo.NewInsertOneModel().SetDocument(doc)
+			bulkData = append(bulkData, insertBlock)
+
+			indexes := []string{
+				fmt.Sprintf("%s:I:ERC20:%x:TIME:%019d:%d:%d", mongodb.ChainId, indexedLog.From, blk.GetTime(), i, j),
+				fmt.Sprintf("%s:I:ERC20:%x:TIME:%019d:%d:%d", mongodb.ChainId, indexedLog.To, blk.GetTime(), i, j),
+
+				fmt.Sprintf("%s:I:ERC20:%x:ALL:TIME:%019d:%d:%d", mongodb.ChainId, indexedLog.TokenAddress, blk.GetTime(), i, j),
+				fmt.Sprintf("%s:I:ERC20:%x:%x:TIME:%019d:%d:%d", mongodb.ChainId, indexedLog.TokenAddress, indexedLog.From, blk.GetTime(), i, j),
+				fmt.Sprintf("%s:I:ERC20:%x:%x:TIME:%019d:%d:%d", mongodb.ChainId, indexedLog.TokenAddress, indexedLog.To, blk.GetTime(), i, j),
+
+				fmt.Sprintf("%s:I:ERC20:%x:TO:%x:%019d:%d:%d", mongodb.ChainId, indexedLog.From, indexedLog.To, blk.GetTime(), i, j),
+				fmt.Sprintf("%s:I:ERC20:%x:FROM:%x:%019d:%d:%d", mongodb.ChainId, indexedLog.To, indexedLog.From, blk.GetTime(), i, j),
+				fmt.Sprintf("%s:I:ERC20:%x:TOKEN_SENT:%x:%019d:%d:%d", mongodb.ChainId, indexedLog.From, indexedLog.TokenAddress, blk.GetTime(), i, j),
+				fmt.Sprintf("%s:I:ERC20:%x:TOKEN_RECEIVED:%x:%019d:%d:%d", mongodb.ChainId, indexedLog.To, indexedLog.TokenAddress, blk.GetTime(), i, j),
+			}
+
+			erc20Identifier := fmt.Sprintf("%s:ERC20:%x:%d", mongodb.ChainId, tx.GetHash(), j)
+
+			for _, idx := range indexes {
+				mut := &entity.Indexes{
+					Type:  "index",
+					Key:   idx,
+					Value: erc20Identifier,
+				}
+				doc, err := utils.ToDoc(mut)
+				if err != nil {
+					return nil, nil, err
+				}
+				insertBlock := mongo.NewInsertOneModel().SetDocument(doc)
+				bulkData = append(bulkData, insertBlock)
+			}
+		}
+	}
+
+	return bulkData, bulkMetadataUpdates, nil
+}
+
+func (mongodb *Mongo) TransformERC721(blk *types.Eth1Block, cache *freecache.Cache) (interface{}, interface{}, error) {
+	var bulkData []mongo.WriteModel
+	var bulkMetadataUpdates []mongo.WriteModel
+
+	filterer, err := erc721.NewErc721Filterer(common.Address{}, nil)
+	if err != nil {
+		log.Printf("error creating filterer: %v", err)
+	}
+
+	for i, tx := range blk.GetTransactions() {
+		if i > 9999 {
+			return nil, nil, fmt.Errorf("unexpected number of transactions in block expected at most 9999 but got: %v, tx: %x", i, tx.GetHash())
+		}
+		for j, log := range tx.GetLogs() {
+			if j > 99999 {
+				return nil, nil, fmt.Errorf("unexpected number of logs in block expected at most 99999 but got: %v tx: %x", j, tx.GetHash())
+			}
+			if len(log.GetTopics()) != 4 || !bytes.Equal(log.GetTopics()[0], erc721.TransferTopic) {
+				continue
+			}
+
+			topics := make([]common.Hash, 0, len(log.GetTopics()))
+
+			for _, lTopic := range log.GetTopics() {
+				topics = append(topics, common.BytesToHash(lTopic))
+			}
+
+			ethLog := eth_types.Log{
+				Address:     common.BytesToAddress(log.GetAddress()),
+				Data:        log.Data,
+				Topics:      topics,
+				BlockNumber: blk.GetNumber(),
+				TxHash:      common.BytesToHash(tx.GetHash()),
+				TxIndex:     uint(i),
+				BlockHash:   common.BytesToHash(blk.GetHash()),
+				Index:       uint(j),
+				Removed:     log.GetRemoved(),
+			}
+
+			transfer, _ := filterer.ParseTransfer(ethLog)
+			if transfer == nil {
+				continue
+			}
+
+			tokenId := new(big.Int)
+			if transfer != nil && transfer.TokenId != nil {
+				tokenId = transfer.TokenId
+			}
+
+			indexedLog := &entity.ERC721Index{
+				ChainId:      mongodb.ChainId,
+				Type:         "erc721index",
+				ParentHash:   tx.GetHash(),
+				BlockNumber:  blk.GetNumber(),
+				Time:         primitive.Timestamp{T: uint32(blk.GetTime().AsTime().Unix()), I: 0},
+				TokenAddress: log.Address,
+				From:         transfer.From.Bytes(),
+				To:           transfer.To.Bytes(),
+				TokenId:      tokenId.Bytes(),
+			}
+			doc, err := utils.ToDoc(indexedLog)
+			if err != nil {
+				return nil, nil, err
+			}
+			insertBlock := mongo.NewInsertOneModel().SetDocument(doc)
+			bulkData = append(bulkData, insertBlock)
+
+			indexes := []string{
+				fmt.Sprintf("%s:I:ERC721:%x:TIME:%019d:%d:%d", mongodb.ChainId, indexedLog.From, blk.GetTime(), i, j),
+				fmt.Sprintf("%s:I:ERC721:%x:TIME:%019d:%d:%d", mongodb.ChainId, indexedLog.To, blk.GetTime(), i, j),
+
+				fmt.Sprintf("%s:I:ERC721:%x:ALL:TIME:%019d:%d:%d", mongodb.ChainId, indexedLog.TokenAddress, blk.GetTime(), i, j),
+				fmt.Sprintf("%s:I:ERC721:%x:%x:TIME:%019d:%d:%d", mongodb.ChainId, indexedLog.TokenAddress, indexedLog.From, blk.GetTime(), i, j),
+				fmt.Sprintf("%s:I:ERC721:%x:%x:TIME:%019d:%d:%d", mongodb.ChainId, indexedLog.TokenAddress, indexedLog.To, blk.GetTime(), i, j),
+
+				fmt.Sprintf("%s:I:ERC721:%x:TO:%x:%019d:%d:%d", mongodb.ChainId, indexedLog.From, indexedLog.To, blk.GetTime(), i, j),
+				fmt.Sprintf("%s:I:ERC721:%x:FROM:%x:%019d:%d:%d", mongodb.ChainId, indexedLog.To, indexedLog.From, blk.GetTime(), i, j),
+				fmt.Sprintf("%s:I:ERC721:%x:TOKEN_SENT:%x:%019d:%d:%d", mongodb.ChainId, indexedLog.From, indexedLog.TokenAddress, blk.GetTime(), i, j),
+				fmt.Sprintf("%s:I:ERC721:%x:TOKEN_RECEIVED:%x:%019d:%d:%d", mongodb.ChainId, indexedLog.To, indexedLog.TokenAddress, blk.GetTime(), i, j),
+			}
+
+			erc721Identifier := fmt.Sprintf("%s:ERC721:%x:%d", mongodb.ChainId, tx.GetHash(), j)
+
+			for _, idx := range indexes {
+				mut := &entity.Indexes{
+					Type:  "index",
+					Key:   idx,
+					Value: erc721Identifier,
+				}
+				doc, err := utils.ToDoc(mut)
+				if err != nil {
+					return nil, nil, err
+				}
+				insertBlock := mongo.NewInsertOneModel().SetDocument(doc)
+				bulkData = append(bulkData, insertBlock)
+			}
+		}
+	}
+
+	return bulkData, bulkMetadataUpdates, nil
+}
+
+func (mongodb *Mongo) TransformERC1155(blk *types.Eth1Block, cache *freecache.Cache) (interface{}, interface{}, error) {
+	var bulkData []mongo.WriteModel
+	var bulkMetadataUpdates []mongo.WriteModel
+
+	filterer, err := erc1155.NewErc1155Filterer(common.Address{}, nil)
+	if err != nil {
+		log.Printf("error creating filterer: %v", err)
+	}
+
+	for i, tx := range blk.GetTransactions() {
+		if i > 9999 {
+			return nil, nil, fmt.Errorf("unexpected number of transactions in block expected at most 9999 but got: %v, tx: %x", i, tx.GetHash())
+		}
+		for j, log := range tx.GetLogs() {
+			if j > 99999 {
+				return nil, nil, fmt.Errorf("unexpected number of logs in block expected at most 99999 but got: %v tx: %x", j, tx.GetHash())
+			}
+			// no events emitted continue
+			if len(log.GetTopics()) != 4 || (!bytes.Equal(log.GetTopics()[0], erc1155.TransferBulkTopic) && !bytes.Equal(log.GetTopics()[0], erc1155.TransferSingleTopic)) {
+				continue
+			}
+
+			topics := make([]common.Hash, 0, len(log.GetTopics()))
+
+			for _, lTopic := range log.GetTopics() {
+				topics = append(topics, common.BytesToHash(lTopic))
+			}
+
+			ethLog := eth_types.Log{
+				Address:     common.BytesToAddress(log.GetAddress()),
+				Data:        log.Data,
+				Topics:      topics,
+				BlockNumber: blk.GetNumber(),
+				TxHash:      common.BytesToHash(tx.GetHash()),
+				TxIndex:     uint(i),
+				BlockHash:   common.BytesToHash(blk.GetHash()),
+				Index:       uint(j),
+				Removed:     log.GetRemoved(),
+			}
+
+			indexedLog := &entity.ERC1155Index{}
+			indexedLog.ChainId = mongodb.ChainId
+			indexedLog.Type = "erc1155index"
+			transferBatch, _ := filterer.ParseTransferBatch(ethLog)
+			transferSingle, _ := filterer.ParseTransferSingle(ethLog)
+			if transferBatch == nil && transferSingle == nil {
+				continue
+			}
+
+			if transferBatch != nil {
+				ids := make([][]byte, 0, len(transferBatch.Ids))
+				for _, id := range transferBatch.Ids {
+					ids = append(ids, id.Bytes())
+				}
+
+				values := make([][]byte, 0, len(transferBatch.Values))
+				for _, val := range transferBatch.Values {
+					values = append(values, val.Bytes())
+				}
+
+				if len(ids) != len(values) {
+					logrus.Errorf("error parsing erc1155 batch transfer logs. Expected len(ids): %v len(values): %v to be the same", len(ids), len(values))
+					continue
+				}
+				for ti := range ids {
+					indexedLog.BlockNumber = blk.GetNumber()
+					indexedLog.Time = primitive.Timestamp{T: uint32(blk.GetTime().AsTime().Unix()), I: 0}
+					indexedLog.ParentHash = tx.GetHash()
+					indexedLog.From = transferBatch.From.Bytes()
+					indexedLog.To = transferBatch.To.Bytes()
+					indexedLog.Operator = transferBatch.Operator.Bytes()
+					indexedLog.TokenId = ids[ti]
+					indexedLog.Value = values[ti]
+					indexedLog.TokenAddress = log.GetAddress()
+				}
+			} else if transferSingle != nil {
+				indexedLog.BlockNumber = blk.GetNumber()
+				indexedLog.Time = primitive.Timestamp{T: uint32(blk.GetTime().AsTime().Unix()), I: 0}
+				indexedLog.ParentHash = tx.GetHash()
+				indexedLog.From = transferSingle.From.Bytes()
+				indexedLog.To = transferSingle.To.Bytes()
+				indexedLog.Operator = transferSingle.Operator.Bytes()
+				indexedLog.TokenId = transferSingle.Id.Bytes()
+				indexedLog.Value = transferSingle.Value.Bytes()
+				indexedLog.TokenAddress = log.GetAddress()
+			}
+
+			doc, err := utils.ToDoc(indexedLog)
+			if err != nil {
+				return nil, nil, err
+			}
+			insertBlock := mongo.NewInsertOneModel().SetDocument(doc)
+			bulkData = append(bulkData, insertBlock)
+
+			indexes := []string{
+				fmt.Sprintf("%s:I:ERC1155:%x:TIME:%019d:%d:%d", mongodb.ChainId, indexedLog.From, blk.GetTime(), i, j),
+				fmt.Sprintf("%s:I:ERC1155:%x:TIME:%019d:%d:%d", mongodb.ChainId, indexedLog.To, blk.GetTime(), i, j),
+
+				fmt.Sprintf("%s:I:ERC1155:%x:ALL:TIME:%019d:%d:%d", mongodb.ChainId, indexedLog.TokenAddress, blk.GetTime(), i, j),
+				fmt.Sprintf("%s:I:ERC1155:%x:%x:TIME:%019d:%d:%d", mongodb.ChainId, indexedLog.TokenAddress, indexedLog.From, blk.GetTime(), i, j),
+				fmt.Sprintf("%s:I:ERC1155:%x:%x:TIME:%019d:%d:%d", mongodb.ChainId, indexedLog.TokenAddress, indexedLog.To, blk.GetTime(), i, j),
+
+				fmt.Sprintf("%s:I:ERC1155:%x:TO:%x:%019d:%d:%d", mongodb.ChainId, indexedLog.From, indexedLog.To, blk.GetTime(), i, j),
+				fmt.Sprintf("%s:I:ERC1155:%x:FROM:%x:%019d:%d:%d", mongodb.ChainId, indexedLog.To, indexedLog.From, blk.GetTime(), i, j),
+				fmt.Sprintf("%s:I:ERC1155:%x:TOKEN_SENT:%x:%019d:%d:%d", mongodb.ChainId, indexedLog.From, indexedLog.TokenAddress, blk.GetTime(), i, j),
+				fmt.Sprintf("%s:I:ERC1155:%x:TOKEN_RECEIVED:%x:%019d:%d:%d", mongodb.ChainId, indexedLog.To, indexedLog.TokenAddress, blk.GetTime(), i, j),
+			}
+
+			erc1155Identifier := fmt.Sprintf("%s:ERC1155:%x:%d", mongodb.ChainId, tx.GetHash(), j)
+
+			for _, idx := range indexes {
+				mut := &entity.Indexes{
+					Type:  "index",
+					Key:   idx,
+					Value: erc1155Identifier,
+				}
+				doc, err := utils.ToDoc(mut)
+				if err != nil {
+					return nil, nil, err
+				}
+				insertBlock := mongo.NewInsertOneModel().SetDocument(doc)
+				bulkData = append(bulkData, insertBlock)
+			}
+		}
+	}
+
+	return bulkData, bulkMetadataUpdates, nil
+}
+
+func (mongodb *Mongo) TransformUncle(block *types.Eth1Block, cache *freecache.Cache) (interface{}, interface{}, error) {
+	var bulkData []mongo.WriteModel
+	var bulkMetadataUpdates []mongo.WriteModel
+
+	for i, uncle := range block.Uncles {
+		if i > 99 {
+			return nil, nil, fmt.Errorf("unexpected number of uncles in block expected at most 99 but got: %v", i)
+		}
+
+		r := new(big.Int)
+
+		if len(block.Difficulty) > 0 {
+			r.Add(big.NewInt(int64(uncle.GetNumber())), big.NewInt(8))
+			r.Sub(r, big.NewInt(int64(block.GetNumber())))
+			r.Mul(r, utils.Eth1BlockReward(block.GetNumber(), block.Difficulty))
+			r.Div(r, big.NewInt(8))
+
+			r.Div(utils.Eth1BlockReward(block.GetNumber(), block.Difficulty), big.NewInt(32))
+		}
+
+		uncleIndexed := entity.UncleBlocksIndex{
+			Number:      uncle.GetNumber(),
+			BlockNumber: block.GetNumber(),
+			GasLimit:    uncle.GetGasLimit(),
+			GasUsed:     uncle.GetGasUsed(),
+			BaseFee:     uncle.GetBaseFee(),
+			Difficulty:  uncle.GetDifficulty(),
+			Time:        primitive.Timestamp{T: uint32(block.GetTime().AsTime().Unix()), I: 0},
+			Reward:      r.Bytes(),
+		}
+
+		mongodb.markBalanceUpdate(uncle.Coinbase, []byte{0x0}, bulkMetadataUpdates, cache)
+
+		doc, err := utils.ToDoc(uncleIndexed)
+		if err != nil {
+			return nil, nil, err
+		}
+		insertBlock := mongo.NewInsertOneModel().SetDocument(doc)
+		bulkData = append(bulkData, insertBlock)
+
+		indexes := []string{
+			// Index uncle by the miners address
+			fmt.Sprintf("%s:I:U:%x:TIME:%019d:%d", mongodb.ChainId, uncle.GetCoinbase(), block.Time, i),
+		}
+
+		uncleBlockIdentifier := fmt.Sprintf("%s:U:%09d:%d", mongodb.ChainId, block.GetNumber(), i)
+		for _, idx := range indexes {
+			mut := &entity.Indexes{
+				Type:  "index",
+				Key:   idx,
+				Value: uncleBlockIdentifier,
+			}
+			doc, err := utils.ToDoc(mut)
+			if err != nil {
+				return nil, nil, err
+			}
+			insertBlock := mongo.NewInsertOneModel().SetDocument(doc)
+			bulkData = append(bulkData, insertBlock)
+		}
+	}
+
+	return bulkData, bulkMetadataUpdates, nil
+}
+
+func (mongodb *Mongo) TransformWithdrawals(block *types.Eth1Block, cache *freecache.Cache) (interface{}, interface{}, error) {
+	var bulkData []mongo.WriteModel
+	var bulkMetadataUpdates []mongo.WriteModel
+
+	if len(block.Withdrawals) > int(utils.Config.Chain.Config.MaxWithdrawalsPerPayload) {
+		return nil, nil, fmt.Errorf("unexpected number of withdrawals in block expected at most %v but got: %v", utils.Config.Chain.Config.MaxWithdrawalsPerPayload, len(block.Withdrawals))
+	}
+
+	for _, withdrawal := range block.Withdrawals {
+		withdrawalIndexed := entity.WithdrawalIndex{
+			BlockNumber:    block.Number,
+			Index:          withdrawal.Index,
+			ValidatorIndex: withdrawal.ValidatorIndex,
+			Address:        withdrawal.Address,
+			Amount:         withdrawal.Amount,
+			Time:           primitive.Timestamp{T: uint32(block.Time.AsTime().Unix()), I: 0},
+		}
+
+		mongodb.markBalanceUpdate(withdrawal.Address, []byte{0x0}, bulkMetadataUpdates, cache)
+
+		doc, err := utils.ToDoc(withdrawalIndexed)
+		if err != nil {
+			return nil, nil, err
+		}
+		insertBlock := mongo.NewInsertOneModel().SetDocument(doc)
+		bulkData = append(bulkData, insertBlock)
+
+		indexes := []string{
+			// Index withdrawal by address
+			fmt.Sprintf("%s:I:W:%x:TIME:%019d:%d", mongodb.ChainId, withdrawal.Address, block.Time, int(withdrawal.Index)),
+		}
+
+		withdrawalIndexIdentifier := fmt.Sprintf("%s:W:%09d:%d", mongodb.ChainId, block.GetNumber(), int(withdrawal.Index))
+		for _, idx := range indexes {
+			mut := &entity.Indexes{
+				Type:  "index",
+				Key:   idx,
+				Value: withdrawalIndexIdentifier,
+			}
+			doc, err := utils.ToDoc(mut)
+			if err != nil {
+				return nil, nil, err
+			}
+			insertBlock := mongo.NewInsertOneModel().SetDocument(doc)
+			bulkData = append(bulkData, insertBlock)
+		}
 	}
 
 	return bulkData, bulkMetadataUpdates, nil

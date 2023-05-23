@@ -26,6 +26,7 @@ type BlockIndex struct {
 }
 
 type TransactionIndex struct {
+	ChainId            string
 	Hash               []byte
 	Type               string
 	BlockNumber        uint64
@@ -42,6 +43,7 @@ type TransactionIndex struct {
 }
 
 type InternalTransactionIndex struct {
+	ChainId     string
 	ParentHash  []byte
 	BlockNumber uint64
 	Type        string
@@ -52,6 +54,7 @@ type InternalTransactionIndex struct {
 }
 
 type ERC20Index struct {
+	ChainId      string
 	ParentHash   []byte
 	Type         string
 	BlockNumber  uint64
@@ -63,6 +66,7 @@ type ERC20Index struct {
 }
 
 type ERC721Index struct {
+	ChainId      string
 	ParentHash   []byte
 	Type         string
 	BlockNumber  uint64
@@ -74,6 +78,7 @@ type ERC721Index struct {
 }
 
 type ERC1155Index struct {
+	ChainId      string
 	ParentHash   []byte
 	Type         string
 	BlockNumber  uint64
@@ -87,6 +92,7 @@ type ERC1155Index struct {
 }
 
 type UncleBlocksIndex struct {
+	ChainId     string
 	BlockNumber uint64
 	Type        string
 	Number      uint64
@@ -99,6 +105,7 @@ type UncleBlocksIndex struct {
 }
 
 type WithdrawalIndex struct {
+	ChainId        string
 	BlockNumber    uint64
 	Type           string
 	Index          uint64
@@ -106,4 +113,10 @@ type WithdrawalIndex struct {
 	Address        []byte
 	Amount         []byte
 	Time           primitive.Timestamp
+}
+
+type Indexes struct {
+	Type  string
+	Key   string
+	Value string
 }

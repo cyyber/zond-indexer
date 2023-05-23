@@ -4,6 +4,8 @@ import (
 	"fmt"
 	"math/big"
 	"os"
+	"path/filepath"
+	"runtime"
 	"time"
 
 	"github.com/Prajjawalk/zond-indexer/config"
@@ -181,4 +183,41 @@ func ToDoc(v interface{}) (doc *bson.D, err error) {
 
 func AddBigInts(a, b []byte) []byte {
 	return new(big.Int).Add(new(big.Int).SetBytes(a), new(big.Int).SetBytes(b)).Bytes()
+}
+
+// LogFatal logs a fatal error with callstack info that skips callerSkip many levels with arbitrarily many additional infos.
+// callerSkip equal to 0 gives you info directly where LogFatal is called.
+func LogFatal(err error, errorMsg interface{}, callerSkip int, additionalInfos ...string) {
+	logErrorInfo(err, callerSkip, additionalInfos...).Fatal(errorMsg)
+}
+
+// LogError logs an error with callstack info that skips callerSkip many levels with arbitrarily many additional infos.
+// callerSkip equal to 0 gives you info directly where LogError is called.
+func LogError(err error, errorMsg interface{}, callerSkip int, additionalInfos ...string) {
+	logErrorInfo(err, callerSkip, additionalInfos...).Error(errorMsg)
+}
+
+func logErrorInfo(err error, callerSkip int, additionalInfos ...string) *logrus.Entry {
+	logFields := logrus.NewEntry(logrus.New())
+
+	pc, fullFilePath, line, ok := runtime.Caller(callerSkip + 2)
+	if ok {
+		logFields = logFields.WithFields(logrus.Fields{
+			"cs_file":     filepath.Base(fullFilePath),
+			"cs_function": runtime.FuncForPC(pc).Name(),
+			"cs_line":     line,
+		})
+	} else {
+		logFields = logFields.WithField("runtime", "Callstack cannot be read")
+	}
+
+	if err != nil {
+		logFields = logFields.WithField("error type", fmt.Sprintf("%T", err)).WithError(err)
+	}
+
+	for idx, info := range additionalInfos {
+		logFields = logFields.WithField(fmt.Sprintf("info_%v", idx), info)
+	}
+
+	return logFields
 }
