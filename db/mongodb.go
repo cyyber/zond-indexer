@@ -29,6 +29,8 @@ var max_block_number = uint64(1000000000)
 var INCOME_DETAILS_COLUMN_FAMILY = "id"
 var STATS_COLUMN_FAMILY = "stats"
 
+var MongodbClient *Mongo
+
 type Mongo struct {
 	Client  *mongo.Client
 	Db      *mongo.Database

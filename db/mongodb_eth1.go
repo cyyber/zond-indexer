@@ -6,8 +6,12 @@ import (
 	"fmt"
 	"log"
 	"math/big"
+	"strconv"
+	"strings"
+	"sync"
 	"time"
 
+	"github.com/Prajjawalk/zond-indexer/cache"
 	"github.com/Prajjawalk/zond-indexer/entity"
 	"github.com/Prajjawalk/zond-indexer/erc1155"
 	"github.com/Prajjawalk/zond-indexer/erc20"
@@ -23,6 +27,7 @@ import (
 	"go.mongodb.org/mongo-driver/bson/primitive"
 	"go.mongodb.org/mongo-driver/mongo"
 	"go.mongodb.org/mongo-driver/mongo/options"
+	"golang.org/x/sync/errgroup"
 	"google.golang.org/protobuf/types/known/timestamppb"
 )
 
@@ -692,14 +697,15 @@ func (mongodb *Mongo) TransformItx(blk *types.Eth1Block, cache *freecache.Cache)
 				continue
 			}
 			indexedItx := &entity.InternalTransactionIndex{
-				ChainId:     mongodb.ChainId,
-				ParentHash:  tx.GetHash(),
-				BlockNumber: blk.GetNumber(),
-				Time:        primitive.Timestamp{T: uint32(blk.GetTime().AsTime().Unix()), I: 0},
-				Type:        idx.GetType(),
-				From:        idx.GetFrom(),
-				To:          idx.GetTo(),
-				Value:       idx.GetValue(),
+				ChainId:         mongodb.ChainId,
+				ParentHash:      tx.GetHash(),
+				BlockNumber:     blk.GetNumber(),
+				Time:            primitive.Timestamp{T: uint32(blk.GetTime().AsTime().Unix()), I: 0},
+				Type:            "internaltransactionindex",
+				TransactionType: idx.GetType(),
+				From:            idx.GetFrom(),
+				To:              idx.GetTo(),
+				Value:           idx.GetValue(),
 			}
 			mongodb.markBalanceUpdate(indexedItx.To, []byte{0x0}, bulkMetadataUpdates, cache)
 			mongodb.markBalanceUpdate(indexedItx.From, []byte{0x0}, bulkMetadataUpdates, cache)
@@ -1074,69 +1080,69 @@ func (mongodb *Mongo) TransformERC1155(blk *types.Eth1Block, cache *freecache.Ca
 	return bulkData, bulkMetadataUpdates, nil
 }
 
-func (mongodb *Mongo) TransformUncle(block *types.Eth1Block, cache *freecache.Cache) (interface{}, interface{}, error) {
-	var bulkData []mongo.WriteModel
-	var bulkMetadataUpdates []mongo.WriteModel
+// func (mongodb *Mongo) TransformUncle(block *types.Eth1Block, cache *freecache.Cache) (interface{}, interface{}, error) {
+// 	var bulkData []mongo.WriteModel
+// 	var bulkMetadataUpdates []mongo.WriteModel
 
-	for i, uncle := range block.Uncles {
-		if i > 99 {
-			return nil, nil, fmt.Errorf("unexpected number of uncles in block expected at most 99 but got: %v", i)
-		}
+// 	for i, uncle := range block.Uncles {
+// 		if i > 99 {
+// 			return nil, nil, fmt.Errorf("unexpected number of uncles in block expected at most 99 but got: %v", i)
+// 		}
 
-		r := new(big.Int)
+// 		r := new(big.Int)
 
-		if len(block.Difficulty) > 0 {
-			r.Add(big.NewInt(int64(uncle.GetNumber())), big.NewInt(8))
-			r.Sub(r, big.NewInt(int64(block.GetNumber())))
-			r.Mul(r, utils.Eth1BlockReward(block.GetNumber(), block.Difficulty))
-			r.Div(r, big.NewInt(8))
+// 		if len(block.Difficulty) > 0 {
+// 			r.Add(big.NewInt(int64(uncle.GetNumber())), big.NewInt(8))
+// 			r.Sub(r, big.NewInt(int64(block.GetNumber())))
+// 			r.Mul(r, utils.Eth1BlockReward(block.GetNumber(), block.Difficulty))
+// 			r.Div(r, big.NewInt(8))
 
-			r.Div(utils.Eth1BlockReward(block.GetNumber(), block.Difficulty), big.NewInt(32))
-		}
+// 			r.Div(utils.Eth1BlockReward(block.GetNumber(), block.Difficulty), big.NewInt(32))
+// 		}
 
-		uncleIndexed := entity.UncleBlocksIndex{
-			Number:      uncle.GetNumber(),
-			BlockNumber: block.GetNumber(),
-			GasLimit:    uncle.GetGasLimit(),
-			GasUsed:     uncle.GetGasUsed(),
-			BaseFee:     uncle.GetBaseFee(),
-			Difficulty:  uncle.GetDifficulty(),
-			Time:        primitive.Timestamp{T: uint32(block.GetTime().AsTime().Unix()), I: 0},
-			Reward:      r.Bytes(),
-		}
+// 		uncleIndexed := entity.UncleBlocksIndex{
+// 			Number:      uncle.GetNumber(),
+// 			BlockNumber: block.GetNumber(),
+// 			GasLimit:    uncle.GetGasLimit(),
+// 			GasUsed:     uncle.GetGasUsed(),
+// 			BaseFee:     uncle.GetBaseFee(),
+// 			Difficulty:  uncle.GetDifficulty(),
+// 			Time:        primitive.Timestamp{T: uint32(block.GetTime().AsTime().Unix()), I: 0},
+// 			Reward:      r.Bytes(),
+// 		}
 
-		mongodb.markBalanceUpdate(uncle.Coinbase, []byte{0x0}, bulkMetadataUpdates, cache)
+// 		mongodb.markBalanceUpdate(uncle.Coinbase, []byte{0x0}, bulkMetadataUpdates, cache)
 
-		doc, err := utils.ToDoc(uncleIndexed)
-		if err != nil {
-			return nil, nil, err
-		}
-		insertBlock := mongo.NewInsertOneModel().SetDocument(doc)
-		bulkData = append(bulkData, insertBlock)
+// 		doc, err := utils.ToDoc(uncleIndexed)
+// 		if err != nil {
+// 			return nil, nil, err
+// 		}
+// 		insertBlock := mongo.NewInsertOneModel().SetDocument(doc)
+// 		bulkData = append(bulkData, insertBlock)
 
-		indexes := []string{
-			// Index uncle by the miners address
-			fmt.Sprintf("%s:I:U:%x:TIME:%019d:%d", mongodb.ChainId, uncle.GetCoinbase(), block.Time, i),
-		}
+// 		indexes := []string{
+// 			// Index uncle by the miners address
+// 			fmt.Sprintf("%s:I:U:%x:TIME:%019d:%d", mongodb.ChainId, uncle.GetCoinbase(), block.Time, i),
+// 		}
 
-		uncleBlockIdentifier := fmt.Sprintf("%s:U:%09d:%d", mongodb.ChainId, block.GetNumber(), i)
-		for _, idx := range indexes {
-			mut := &entity.Indexes{
-				Type:  "index",
-				Key:   idx,
-				Value: uncleBlockIdentifier,
-			}
-			doc, err := utils.ToDoc(mut)
-			if err != nil {
-				return nil, nil, err
-			}
-			insertBlock := mongo.NewInsertOneModel().SetDocument(doc)
-			bulkData = append(bulkData, insertBlock)
-		}
-	}
+// 		uncleBlockIdentifier := fmt.Sprintf("%s:U:%09d:%d", mongodb.ChainId, block.GetNumber(), i)
+// 		for _, idx := range indexes {
+// 			mut := &entity.Indexes{
+// 				Type:  "index",
+// 				Key:   idx,
+// 				Value: uncleBlockIdentifier,
+// 			}
+// 			doc, err := utils.ToDoc(mut)
+// 			if err != nil {
+// 				return nil, nil, err
+// 			}
+// 			insertBlock := mongo.NewInsertOneModel().SetDocument(doc)
+// 			bulkData = append(bulkData, insertBlock)
+// 		}
+// 	}
 
-	return bulkData, bulkMetadataUpdates, nil
-}
+// 	return bulkData, bulkMetadataUpdates, nil
+// }
 
 func (mongodb *Mongo) TransformWithdrawals(block *types.Eth1Block, cache *freecache.Cache) (interface{}, interface{}, error) {
 	var bulkData []mongo.WriteModel
@@ -1187,6 +1193,360 @@ func (mongodb *Mongo) TransformWithdrawals(block *types.Eth1Block, cache *freeca
 	}
 
 	return bulkData, bulkMetadataUpdates, nil
+}
+
+func (mongodb *Mongo) GetEth1TxForAddress(prefix string, limit int64) ([]*types.Eth1TransactionIndexed, string, error) {
+	ctx, cancel := context.WithDeadline(context.Background(), time.Now().Add(time.Second*30))
+	defer cancel()
+
+	data := make([]*types.Eth1TransactionIndexed, 0, limit)
+	keys := make([]string, 0, limit)
+	indexes := make([]string, 0, limit)
+
+	indexFilter := bson.D{{"type", "index"}, {"key", bson.D{{"$regex", prefix}}}}
+	idxcursor, err := mongodb.Db.Collection(DATA).Find(ctx, indexFilter, options.Find().SetLimit(limit))
+	var indexResults []*entity.Indexes
+	if err = idxcursor.All(ctx, &indexResults); err != nil {
+		logger.Errorf("error while parsing transaction data: %v", err)
+	}
+
+	for _, cur := range indexResults {
+		keys = append(keys, cur.Value)
+		indexes = append(indexes, cur.Key)
+	}
+
+	chainId := ""
+	var txHashes [][]byte
+	for _, key := range keys {
+		keysplit := strings.Split(key, ":")
+		chainId = keysplit[0]
+		txHash := keysplit[2]
+		txHashes = append(txHashes, []byte(txHash))
+	}
+
+	var results []*entity.TransactionIndex
+	filter := bson.D{{"chainId", chainId}, {"type", "transactionindex"}, {"hash", bson.D{{"$in", txHashes}}}}
+	cursor, err := mongodb.Db.Collection(DATA).Find(ctx, filter, options.Find().SetLimit(limit))
+	if err = cursor.All(ctx, &results); err != nil {
+		logger.Errorf("error while parsing transaction data: %v", err)
+	}
+
+	for _, result := range results {
+		data = append(data, &types.Eth1TransactionIndexed{
+			Hash:               result.Hash,
+			BlockNumber:        result.BlockNumber,
+			Time:               timestamppb.New(time.Unix(int64(result.Time.T), 0)),
+			MethodId:           result.MethodId,
+			From:               result.From,
+			To:                 result.To,
+			Value:              result.Value,
+			TxFee:              result.TxFee,
+			GasPrice:           result.GasPrice,
+			IsContractCreation: result.IsContractCreation,
+			InvokesContract:    result.InvokesContract,
+			ErrorMsg:           result.ErrorMsg,
+		})
+	}
+
+	return data, indexes[len(indexes)-1], nil
+}
+
+func (mongodb *Mongo) GetAddressesNamesArMetadata(names *map[string]string, inputMetadata *map[string]*types.ERC20Metadata) (map[string]string, map[string]*types.ERC20Metadata, error) {
+	outputMetadata := make(map[string]*types.ERC20Metadata)
+
+	g := new(errgroup.Group)
+	g.SetLimit(25)
+	mux := sync.Mutex{}
+
+	if names != nil {
+		g.Go(func() error {
+			err := mongodb.GetAddressNames(*names)
+			if err != nil {
+				return err
+			}
+			return nil
+		})
+	}
+
+	if inputMetadata != nil {
+		for address := range *inputMetadata {
+			address := address
+			g.Go(func() error {
+				metadata, err := mongodb.GetERC20MetadataForAddress([]byte(address))
+				if err != nil {
+					return err
+				}
+				mux.Lock()
+				outputMetadata[address] = metadata
+				mux.Unlock()
+				return nil
+			})
+		}
+	}
+
+	err := g.Wait()
+	if err != nil {
+		return nil, nil, err
+	}
+
+	return *names, outputMetadata, nil
+}
+
+func (mongodb *Mongo) GetIndexedEth1Transaction(txHash []byte) (*types.Eth1TransactionIndexed, error) {
+	ctx, cancel := context.WithDeadline(context.Background(), time.Now().Add(time.Second*30))
+	defer cancel()
+
+	var result *entity.TransactionIndex
+	filter := bson.D{{Key: "chainId", Value: mongodb.ChainId}, {Key: "type", Value: "transactionindex"}, {Key: "hash", Value: txHash}}
+	err := mongodb.Db.Collection(DATA).FindOne(ctx, filter).Decode(&result)
+	if err != nil {
+		return nil, err
+	}
+
+	return &types.Eth1TransactionIndexed{
+		Hash:               result.Hash,
+		BlockNumber:        result.BlockNumber,
+		Time:               timestamppb.New(time.Unix(int64(result.Time.T), 0)),
+		MethodId:           result.MethodId,
+		From:               result.From,
+		To:                 result.To,
+		Value:              result.Value,
+		TxFee:              result.TxFee,
+		GasPrice:           result.GasPrice,
+		IsContractCreation: result.IsContractCreation,
+		InvokesContract:    result.InvokesContract,
+		ErrorMsg:           result.ErrorMsg,
+	}, nil
+}
+
+func (mongodb *Mongo) GetAddressTransactionsTableData(address []byte, search string, pageToken string) (*types.DataTableResponse, error) {
+	if pageToken == "" {
+		pageToken = fmt.Sprintf("%s:I:TX:%x:%s:", mongodb.ChainId, address, FILTER_TIME)
+	}
+
+	transactions, lastKey, err := MongodbClient.GetEth1TxForAddress(pageToken, 25)
+	if err != nil {
+		return nil, err
+	}
+
+	// retrieve metadata
+	names := make(map[string]string)
+	for k, t := range transactions {
+		if t != nil {
+			names[string(t.From)] = ""
+			names[string(t.To)] = ""
+		} else {
+			logrus.WithField("index", k).WithField("len(transactions)", len(transactions)).WithField("pageToken", pageToken).Error("error, found nil transactions")
+		}
+	}
+	names, _, err = MongodbClient.GetAddressesNamesArMetadata(&names, nil)
+	if err != nil {
+		return nil, err
+	}
+
+	tableData := make([][]interface{}, len(transactions))
+	for i, t := range transactions {
+
+		fromName := ""
+		toName := ""
+		if t != nil {
+			fromName = names[string(t.From)]
+			toName = names[string(t.To)]
+		}
+
+		from := utils.FormatAddress(t.From, nil, fromName, false, false, !bytes.Equal(t.From, address))
+		to := utils.FormatAddress(t.To, nil, toName, false, false, !bytes.Equal(t.To, address))
+
+		method := "Transfer"
+		if len(t.MethodId) > 0 {
+
+			if t.InvokesContract {
+				method = fmt.Sprintf("0x%x", t.MethodId)
+			} else {
+				method = "Transfer*"
+			}
+		}
+		// logger.Infof("hash: %x amount: %s", t.Hash, new(big.Int).SetBytes(t.Value))
+
+		tableData[i] = []interface{}{
+			utils.FormatTransactionHash(t.Hash),
+			utils.FormatMethod(method),
+			utils.FormatBlockNumber(t.BlockNumber),
+			utils.FormatTimeFromNow(t.Time.AsTime()),
+			from,
+			utils.FormatInOutSelf(address, t.From, t.To),
+			to,
+			utils.FormatAmount(new(big.Int).SetBytes(t.Value), "Ether", 6),
+		}
+	}
+
+	data := &types.DataTableResponse{
+		// Draw: draw,
+		// RecordsTotal:    ,
+		// RecordsFiltered: ,
+		Data:        tableData,
+		PagingToken: lastKey,
+	}
+
+	return data, nil
+}
+
+func (mongodb *Mongo) GetEth1BlocksForAddress(prefix string, limit int64) ([]*types.Eth1BlockIndexed, string, error) {
+	ctx, cancel := context.WithDeadline(context.Background(), time.Now().Add(time.Second*30))
+	defer cancel()
+
+	data := make([]*types.Eth1BlockIndexed, 0, limit)
+	keys := make([]string, 0, limit)
+	indexes := make([]string, 0, limit)
+
+	indexFilter := bson.D{{Key: "type", Value: "index"}, {Key: "key", Value: bson.D{{Key: "$regex", Value: prefix}}}}
+	idxcursor, err := mongodb.Db.Collection(DATA).Find(ctx, indexFilter, options.Find().SetLimit(limit))
+	var indexResults []*entity.Indexes
+	if err = idxcursor.All(ctx, &indexResults); err != nil {
+		logger.Errorf("error while parsing transaction data: %v", err)
+	}
+
+	for _, cur := range indexResults {
+		keys = append(keys, cur.Value)
+		indexes = append(indexes, cur.Key)
+	}
+
+	chainId := ""
+	var blocknumbers []uint64
+	for _, key := range keys {
+		keysplit := strings.Split(key, ":")
+		chainId = keysplit[0]
+		blocknumber, _ := strconv.ParseUint(keysplit[2], 10, 64)
+		blocknumbers = append(blocknumbers, blocknumber)
+	}
+
+	var results []*entity.BlockIndex
+	filter := bson.D{{"chainId", chainId}, {"type", "blockindex"}, {"number", bson.D{{"$in", blocknumbers}}}}
+	cursor, err := mongodb.Db.Collection(DATA).Find(ctx, filter, options.Find().SetLimit(limit))
+	if err = cursor.All(ctx, &results); err != nil {
+		logger.Errorf("error while parsing transaction data: %v", err)
+	}
+
+	for _, result := range results {
+		data = append(data, &types.Eth1BlockIndexed{
+			Hash:                     result.Hash,
+			ParentHash:               result.ParentHash,
+			UncleHash:                result.UncleHash,
+			Coinbase:                 result.Coinbase,
+			Difficulty:               result.Difficulty,
+			Number:                   result.Number,
+			GasLimit:                 result.GasLimit,
+			GasUsed:                  result.GasUsed,
+			Time:                     timestamppb.New(time.Unix(int64(result.Time.T), 0)),
+			BaseFee:                  result.BaseFee,
+			UncleCount:               result.UncleCount,
+			TransactionCount:         result.TransactionCount,
+			Mev:                      result.Mev,
+			LowestGasPrice:           result.LowestGasPrice,
+			HighestGasPrice:          result.HighestGasPrice,
+			TxReward:                 result.TxReward,
+			UncleReward:              result.UncleReward,
+			InternalTransactionCount: result.InternalTransactionCount,
+		})
+	}
+
+	return data, indexes[len(indexes)-1], nil
+}
+
+func (mongodb *Mongo) GetAddressNames(addresses map[string]string) error {
+	ctx, cancel := context.WithDeadline(context.Background(), time.Now().Add(time.Second*30))
+	defer cancel()
+
+	keys := make([]string, 0, len(addresses))
+
+	for address := range addresses {
+		keys = append(keys, address)
+	}
+
+	var results []*entity.AccountMetadataFamily
+	filter := bson.D{{Key: "chainId", Value: mongodb.ChainId}, {Key: "type", Value: ACCOUNT_METADATA_FAMILY}, {Key: "address", Value: bson.D{{Key: "$in", Value: keys}}}}
+	cursor, err := mongodb.Db.Collection(METADATA).Find(ctx, filter)
+	if err = cursor.All(ctx, &results); err != nil {
+		return err
+	}
+
+	for _, result := range results {
+		addresses[result.Address] = result.Name
+	}
+
+	return nil
+}
+
+func (mongodb *Mongo) GetAddressBlocksMinedTableData(address string, search string, pageToken string) (*types.DataTableResponse, error) {
+	if pageToken == "" {
+		pageToken = fmt.Sprintf("%s:I:B:%s:", mongodb.ChainId, address)
+	}
+
+	blocks, lastKey, err := MongodbClient.GetEth1BlocksForAddress(pageToken, 25)
+	if err != nil {
+		return nil, err
+	}
+
+	tableData := make([][]interface{}, len(blocks))
+	for i, b := range blocks {
+		// logger.Infof("hash: %d amount: %s", b.Number, new(big.Int).SetBytes(b.TxReward).String())
+
+		reward := new(big.Int).Add(utils.Eth1BlockReward(b.Number, b.Difficulty), new(big.Int).SetBytes(b.TxReward))
+
+		tableData[i] = []interface{}{
+			utils.FormatBlockNumber(b.Number),
+			utils.FormatTimeFromNow(b.Time.AsTime()),
+			utils.FormatBlockUsage(b.GasUsed, b.GasLimit),
+			utils.FormatAmount(reward, "Ether", 6),
+		}
+	}
+
+	data := &types.DataTableResponse{
+		// Draw: draw,
+		// RecordsTotal:    ,
+		// RecordsFiltered: ,
+		Data:        tableData,
+		PagingToken: lastKey,
+	}
+
+	return data, nil
+}
+
+func (mongodb *Mongo) GetERC20MetadataForAddress(address []byte) (*types.ERC20Metadata, error) {
+	if len(address) == 1 {
+		return &types.ERC20Metadata{
+			Decimals:    big.NewInt(18).Bytes(),
+			Symbol:      "Ether",
+			TotalSupply: []byte{},
+		}, nil
+	}
+
+	ctx, cancel := context.WithTimeout(context.Background(), time.Second*30)
+	defer cancel()
+
+	cacheKey := fmt.Sprintf("%s:ERC20:%s", mongodb.ChainId, string(address))
+	if cached, err := cache.TieredCache.GetWithLocalTimeout(cacheKey, time.Hour*24, new(types.ERC20Metadata)); err == nil {
+		return cached.(*types.ERC20Metadata), nil
+	}
+
+	var result *entity.ERC20MetadataFamily
+	filter := bson.D{{Key: "chainId", Value: mongodb.ChainId}, {Key: "type", Value: ERC20_METADATA_FAMILY}, {Key: "address", Value: string(address)}}
+	err := mongodb.Db.Collection(METADATA).FindOne(ctx, filter).Decode(&result)
+	if err != nil {
+		return nil, err
+	}
+
+	return &types.ERC20Metadata{
+		Decimals:     result.Decimals,
+		Symbol:       result.Symbol,
+		Name:         result.Name,
+		Description:  result.Description,
+		Logo:         result.Logo,
+		LogoFormat:   result.Logoformat,
+		TotalSupply:  result.TotalSupply,
+		OfficialSite: result.OfficialSite,
+		Price:        result.Price,
+	}, nil
 }
 
 func (mongodb *Mongo) markBalanceUpdate(address []byte, token []byte, mutations interface{}, cache *freecache.Cache) {

@@ -5,10 +5,12 @@ import (
 	"math/big"
 	"os"
 	"path/filepath"
+	"regexp"
 	"runtime"
 	"time"
 
 	"github.com/Prajjawalk/zond-indexer/config"
+	"github.com/Prajjawalk/zond-indexer/price"
 	"github.com/Prajjawalk/zond-indexer/types"
 	"github.com/kelseyhightower/envconfig"
 	"github.com/sirupsen/logrus"
@@ -18,6 +20,7 @@ import (
 
 // Config is the globally accessible configuration
 var Config *types.Config
+var eth1AddressRE = regexp.MustCompile("^(0x)?[0-9a-fA-F]{40}$")
 
 func readConfigEnv(cfg *types.Config) error {
 	return envconfig.Process("", cfg)
@@ -220,4 +223,13 @@ func logErrorInfo(err error, callerSkip int, additionalInfos ...string) *logrus.
 	}
 
 	return logFields
+}
+
+// IsEth1Address verifies whether a string represents an eth1-address. In contrast to IsValidEth1Address, this also returns true for the 0x0 address
+func IsEth1Address(s string) bool {
+	return eth1AddressRE.MatchString(s)
+}
+
+func ExchangeRateForCurrency(currency string) float64 {
+	return price.GetEthPrice(currency)
 }

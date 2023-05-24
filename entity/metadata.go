@@ -4,6 +4,7 @@ import "go.mongodb.org/mongo-driver/bson/primitive"
 
 type AccountMetadataFamily struct {
 	ID      primitive.ObjectID `json:"_id,omitempty" bson:"_id,omitempty"`
+	Type    string
 	Name    string
 	Balance uint64
 	Token   string
@@ -17,15 +18,18 @@ type ContractMetadataFamily struct {
 }
 
 type ERC20MetadataFamily struct {
-	ID          primitive.ObjectID `json:"_id,omitempty" bson:"_id,omitempty"`
-	Name        string
-	Logo        []byte
-	Logoformat  string
-	Price       []byte
-	Description string
-	Decimals    uint64
-	TotalSupply uint64
-	Symbol      string
+	ID           primitive.ObjectID `json:"_id,omitempty" bson:"_id,omitempty"`
+	Type         string
+	Address      string
+	Name         string
+	Logo         []byte
+	Logoformat   string
+	Price        []byte
+	Description  string
+	Decimals     []byte
+	TotalSupply  []byte
+	Symbol       string
+	OfficialSite string
 }
 
 type ERC721MetadataFamily struct {

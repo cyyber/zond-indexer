@@ -29,6 +29,7 @@ type TransactionIndex struct {
 	ChainId            string
 	Hash               []byte
 	Type               string
+	TransactionType    string
 	BlockNumber        uint64
 	Time               primitive.Timestamp
 	MethodId           []byte
@@ -43,14 +44,15 @@ type TransactionIndex struct {
 }
 
 type InternalTransactionIndex struct {
-	ChainId     string
-	ParentHash  []byte
-	BlockNumber uint64
-	Type        string
-	Time        primitive.Timestamp
-	From        []byte
-	To          []byte
-	Value       []byte
+	ChainId         string
+	ParentHash      []byte
+	Type            string
+	BlockNumber     uint64
+	TransactionType string
+	Time            primitive.Timestamp
+	From            []byte
+	To              []byte
+	Value           []byte
 }
 
 type ERC20Index struct {
