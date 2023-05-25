@@ -59,6 +59,7 @@ require (
 	github.com/kelseyhightower/envconfig v1.4.0
 	github.com/klauspost/compress v1.15.15 // indirect
 	github.com/montanaflynn/stats v0.0.0-20171201202039-1bf9dbcd8cbe // indirect
+	github.com/mvdan/xurls v1.1.0
 	github.com/pkg/errors v0.9.1 // indirect
 	github.com/prysmaticlabs/go-bitfield v0.0.0-20210809151128-385d8c5e3fb7
 	github.com/sirupsen/logrus v1.9.0
@@ -70,4 +71,5 @@ require (
 	golang.org/x/sync v0.1.0 // indirect
 	golang.org/x/text v0.9.0 // indirect
 	gopkg.in/yaml.v2 v2.4.0
+	mvdan.cc/xurls/v2 v2.5.0
 )

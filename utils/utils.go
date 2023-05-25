@@ -13,6 +13,7 @@ import (
 	"github.com/Prajjawalk/zond-indexer/price"
 	"github.com/Prajjawalk/zond-indexer/types"
 	"github.com/kelseyhightower/envconfig"
+	"github.com/mvdan/xurls"
 	"github.com/sirupsen/logrus"
 	"go.mongodb.org/mongo-driver/bson"
 	"gopkg.in/yaml.v2"
@@ -232,4 +233,59 @@ func IsEth1Address(s string) bool {
 
 func ExchangeRateForCurrency(currency string) float64 {
 	return price.GetEthPrice(currency)
+}
+
+func FormatTokenSymbolTitle(symbol string) string {
+	urls := xurls.Relaxed.FindAllString(symbol, -1)
+
+	if len(urls) > 0 {
+		return "The token symbol has been hidden as it contains a URL which might be a scam"
+	}
+	return ""
+}
+
+func FormatTokenSymbol(symbol string) string {
+	urls := xurls.Relaxed.FindAllString(symbol, -1)
+
+	if len(urls) > 0 {
+		return "[hidden-symbol]"
+	}
+	return symbol
+}
+
+func FormatThousandsEnglish(number string) string {
+	runes := []rune(number)
+	cnt := 0
+	for _, rune := range runes {
+		if rune == '.' {
+			break
+		}
+		cnt += 1
+	}
+	amt := cnt / 3
+	rem := cnt % 3
+
+	if rem == 0 {
+		amt -= 1
+	}
+
+	res := make([]rune, 0, amt+rem)
+	if amt <= 0 {
+		return number
+	}
+	for i := 0; i < len(runes); i++ {
+		if i != 0 && i == rem {
+			res = append(res, ',')
+			amt -= 1
+		}
+
+		if amt > 0 && i > rem && ((i-rem)%3) == 0 {
+			res = append(res, ',')
+			amt -= 1
+		}
+
+		res = append(res, runes[i])
+	}
+
+	return string(res)
 }

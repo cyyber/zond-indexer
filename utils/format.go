@@ -2,6 +2,7 @@ package utils
 
 import (
 	"database/sql"
+	"encoding/base64"
 	"encoding/hex"
 	"fmt"
 	"html"
@@ -13,7 +14,9 @@ import (
 	"time"
 
 	"github.com/Prajjawalk/zond-indexer/price"
+	"github.com/Prajjawalk/zond-indexer/types"
 	"github.com/prysmaticlabs/go-bitfield"
+	"github.com/shopspring/decimal"
 
 	"github.com/ethereum/go-ethereum/common"
 	"github.com/ethereum/go-ethereum/common/hexutil"
@@ -1179,15 +1182,15 @@ func FormatBlockReward(blockNumber int64) template.HTML {
 // 		</div>`, e.Int64()), balEth))
 // }
 
-// func FormatTokenValue(balance *types.Eth1AddressBalance) template.HTML {
-// 	decimals := new(big.Int).SetBytes(balance.Metadata.Decimals)
-// 	p := message.NewPrinter(language.English)
-// 	mul := decimal.NewFromFloat(float64(10)).Pow(decimal.NewFromBigInt(decimals, 0))
-// 	num := decimal.NewFromBigInt(new(big.Int).SetBytes(balance.Balance), 0)
-// 	f, _ := num.DivRound(mul, int32(decimals.Int64())).Float64()
+func FormatTokenValue(balance *types.Eth1AddressBalance) template.HTML {
+	decimals := new(big.Int).SetBytes(balance.Metadata.Decimals)
+	p := message.NewPrinter(language.English)
+	mul := decimal.NewFromFloat(float64(10)).Pow(decimal.NewFromBigInt(decimals, 0))
+	num := decimal.NewFromBigInt(new(big.Int).SetBytes(balance.Balance), 0)
+	f, _ := num.DivRound(mul, int32(decimals.Int64())).Float64()
 
-// 	return template.HTML(p.Sprintf("%s", FormatThousandsEnglish(strconv.FormatFloat(f, 'f', -1, 64))))
-// }
+	return template.HTML(p.Sprintf("%s", FormatThousandsEnglish(strconv.FormatFloat(f, 'f', -1, 64))))
+}
 
 // func FormatErc20Decimals(balance []byte, metadata *types.ERC20Metadata) decimal.Decimal {
 // 	decimals := new(big.Int).SetBytes(metadata.Decimals)
@@ -1197,15 +1200,15 @@ func FormatBlockReward(blockNumber int64) template.HTML {
 // 	return num.DivRound(mul, int32(decimals.Int64()))
 // }
 
-// func FormatTokenName(balance *types.Eth1AddressBalance) template.HTML {
-// 	logo := ""
-// 	if len(balance.Metadata.Logo) != 0 {
-// 		logo = fmt.Sprintf(`<img style="height: 20px;" src="data:image/png;base64, %s">`, base64.StdEncoding.EncodeToString(balance.Metadata.Logo))
-// 	}
-// 	symbolTitle := FormatTokenSymbolTitle(balance.Metadata.Symbol)
-// 	symbol := FormatTokenSymbol(balance.Metadata.Symbol)
-// 	return template.HTML(fmt.Sprintf(`<a href='/token/0x%x?a=0x%x' title="%s">%s %s</a>`, balance.Token, balance.Address, symbolTitle, logo, symbol))
-// }
+func FormatTokenName(balance *types.Eth1AddressBalance) template.HTML {
+	logo := ""
+	if len(balance.Metadata.Logo) != 0 {
+		logo = fmt.Sprintf(`<img style="height: 20px;" src="data:image/png;base64, %s">`, base64.StdEncoding.EncodeToString(balance.Metadata.Logo))
+	}
+	symbolTitle := FormatTokenSymbolTitle(balance.Metadata.Symbol)
+	symbol := FormatTokenSymbol(balance.Metadata.Symbol)
+	return template.HTML(fmt.Sprintf(`<a href='/token/0x%x?a=0x%x' title="%s">%s %s</a>`, balance.Token, balance.Address, symbolTitle, logo, symbol))
+}
 
 // func ToBase64(input []byte) string {
 // 	return base64.StdEncoding.EncodeToString(input)

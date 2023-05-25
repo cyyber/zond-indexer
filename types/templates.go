@@ -154,3 +154,10 @@ type ValidatorEffectiveness struct {
 	Validatorindex        uint64  `json:"validatorindex"`
 	AttestationEfficiency float64 `json:"attestation_efficiency"`
 }
+
+type Eth1AddressBalance struct {
+	Address  []byte
+	Token    []byte
+	Balance  []byte
+	Metadata *ERC20Metadata
+}
