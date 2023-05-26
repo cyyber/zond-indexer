@@ -161,3 +161,11 @@ type Eth1AddressBalance struct {
 	Balance  []byte
 	Metadata *ERC20Metadata
 }
+
+type Eth1AddressMetadata struct {
+	Balances   []*Eth1AddressBalance
+	ERC20      *ERC20Metadata
+	Name       string
+	Tags       []template.HTML
+	EthBalance *Eth1AddressBalance
+}

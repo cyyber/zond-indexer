@@ -1716,6 +1716,340 @@ func (mongodb *Mongo) GetArbitraryTokenTransfersForTransaction(transaction []byt
 	return data, nil
 }
 
+func (mongodb *Mongo) GetEth1ERC20ForAddress(prefix string, limit int64) ([]*types.Eth1ERC20Indexed, string, error) {
+	ctx, cancel := context.WithDeadline(context.Background(), time.Now().Add(time.Second*30))
+	defer cancel()
+
+	data := make([]*types.Eth1ERC20Indexed, 0, limit)
+	keys := make([]string, 0, limit)
+	indexes := make([]string, 0, limit)
+
+	indexFilter := bson.D{{Key: "type", Value: "index"}, {Key: "key", Value: bson.D{{Key: "$regex", Value: prefix}}}}
+	idxcursor, err := mongodb.Db.Collection(DATA).Find(ctx, indexFilter, options.Find().SetLimit(limit))
+	var indexResults []*entity.Indexes
+	if err = idxcursor.All(ctx, &indexResults); err != nil {
+		logger.Errorf("error while parsing transaction data: %v", err)
+	}
+
+	for _, cur := range indexResults {
+		keys = append(keys, cur.Value)
+		indexes = append(indexes, cur.Key)
+	}
+	if len(keys) == 0 {
+		return data, "", nil
+	}
+
+	chainId := ""
+	var txHashes [][]byte
+	for _, key := range keys {
+		keysplit := strings.Split(key, ":")
+		chainId = keysplit[0]
+		txHash := keysplit[2]
+		txHashes = append(txHashes, []byte(txHash))
+	}
+
+	var results []*entity.ERC20Index
+	filter := bson.D{{Key: "chainId", Value: chainId}, {Key: "type", Value: "erc20index"}, {Key: "hash", Value: bson.D{{Key: "$in", Value: txHashes}}}}
+	cursor, err := mongodb.Db.Collection(DATA).Find(ctx, filter, options.Find().SetLimit(limit))
+	if err = cursor.All(ctx, &results); err != nil {
+		logger.Errorf("error while parsing transaction data: %v", err)
+	}
+
+	for _, result := range results {
+		data = append(data, &types.Eth1ERC20Indexed{
+			ParentHash:   result.ParentHash,
+			BlockNumber:  result.BlockNumber,
+			TokenAddress: result.TokenAddress,
+			Time:         timestamppb.New(time.Unix(int64(result.Time.T), 0)),
+			From:         result.From,
+			To:           result.To,
+			Value:        result.Value,
+		})
+	}
+
+	return data, indexes[len(indexes)-1], nil
+}
+
+func (mongodb *Mongo) GetAddressErc20TableData(address []byte, search string, pageToken string) (*types.DataTableResponse, error) {
+	if pageToken == "" {
+		pageToken = fmt.Sprintf("%s:I:ERC20:%x:%s:", mongodb.ChainId, address, FILTER_TIME)
+	}
+
+	transactions, lastKey, err := mongodb.GetEth1ERC20ForAddress(pageToken, 25)
+	if err != nil {
+		return nil, err
+	}
+
+	names := make(map[string]string)
+	tokens := make(map[string]*types.ERC20Metadata)
+	for _, t := range transactions {
+		names[string(t.From)] = ""
+		names[string(t.To)] = ""
+		tokens[string(t.TokenAddress)] = nil
+	}
+	names, tokens, err = MongodbClient.GetAddressesNamesArMetadata(&names, &tokens)
+	if err != nil {
+		return nil, err
+	}
+
+	// fromName := names[string(t.From)]
+	// toName := names[string(t.To)]
+
+	tableData := make([][]interface{}, len(transactions))
+
+	for i, t := range transactions {
+
+		fromName := names[string(t.From)]
+		toName := names[string(t.To)]
+		from := utils.FormatAddress(t.From, t.TokenAddress, fromName, false, false, !bytes.Equal(t.From, address))
+		to := utils.FormatAddress(t.To, t.TokenAddress, toName, false, false, !bytes.Equal(t.To, address))
+
+		tb := &types.Eth1AddressBalance{
+			Address:  address,
+			Balance:  t.Value,
+			Token:    t.TokenAddress,
+			Metadata: tokens[string(t.TokenAddress)],
+		}
+
+		tableData[i] = []interface{}{
+			utils.FormatTransactionHash(t.ParentHash),
+			utils.FormatTimeFromNow(t.Time.AsTime()),
+			from,
+			utils.FormatInOutSelf(address, t.From, t.To),
+			to,
+			utils.FormatTokenValue(tb),
+			utils.FormatTokenName(tb),
+		}
+
+	}
+
+	data := &types.DataTableResponse{
+		Data:        tableData,
+		PagingToken: lastKey,
+	}
+
+	return data, nil
+}
+
+func (mongodb *Mongo) GetEth1ERC721ForAddress(prefix string, limit int64) ([]*types.Eth1ERC721Indexed, string, error) {
+	ctx, cancel := context.WithDeadline(context.Background(), time.Now().Add(time.Second*30))
+	defer cancel()
+
+	data := make([]*types.Eth1ERC721Indexed, 0, limit)
+	keys := make([]string, 0, limit)
+	indexes := make([]string, 0, limit)
+
+	indexFilter := bson.D{{Key: "type", Value: "index"}, {Key: "key", Value: bson.D{{Key: "$regex", Value: prefix}}}}
+	idxcursor, err := mongodb.Db.Collection(DATA).Find(ctx, indexFilter, options.Find().SetLimit(limit))
+	var indexResults []*entity.Indexes
+	if err = idxcursor.All(ctx, &indexResults); err != nil {
+		logger.Errorf("error while parsing transaction data: %v", err)
+	}
+
+	for _, cur := range indexResults {
+		keys = append(keys, cur.Value)
+		indexes = append(indexes, cur.Key)
+	}
+	if len(keys) == 0 {
+		return data, "", nil
+	}
+
+	chainId := ""
+	var txHashes [][]byte
+	for _, key := range keys {
+		keysplit := strings.Split(key, ":")
+		chainId = keysplit[0]
+		txHash := keysplit[2]
+		txHashes = append(txHashes, []byte(txHash))
+	}
+
+	var results []*entity.ERC721Index
+	filter := bson.D{{Key: "chainId", Value: chainId}, {Key: "type", Value: "erc721index"}, {Key: "hash", Value: bson.D{{Key: "$in", Value: txHashes}}}}
+	cursor, err := mongodb.Db.Collection(DATA).Find(ctx, filter, options.Find().SetLimit(limit))
+	if err = cursor.All(ctx, &results); err != nil {
+		logger.Errorf("error while parsing transaction data: %v", err)
+	}
+
+	for _, result := range results {
+		data = append(data, &types.Eth1ERC721Indexed{
+			ParentHash:   result.ParentHash,
+			BlockNumber:  result.BlockNumber,
+			TokenAddress: result.TokenAddress,
+			Time:         timestamppb.New(time.Unix(int64(result.Time.T), 0)),
+			From:         result.From,
+			To:           result.To,
+			TokenId:      result.TokenId,
+		})
+	}
+
+	return data, indexes[len(indexes)-1], nil
+}
+
+func (mongodb *Mongo) GetAddressErc721TableData(address string, search string, pageToken string) (*types.DataTableResponse, error) {
+	if pageToken == "" {
+		pageToken = fmt.Sprintf("%s:I:ERC721:%s:%s:", mongodb.ChainId, address, FILTER_TIME)
+		// pageToken = fmt.Sprintf("%s:I:ERC721:%s:%s:9999999999999999999:9999:99999", bigtable.chainId, address, FILTER_TIME)
+	}
+
+	transactions, lastKey, err := mongodb.GetEth1ERC721ForAddress(pageToken, 25)
+	if err != nil {
+		return nil, err
+	}
+
+	tableData := make([][]interface{}, len(transactions))
+	for i, t := range transactions {
+		from := utils.FormatAddressWithLimits(t.From, "", false, "", 13, 0, false)
+		if fmt.Sprintf("%x", t.From) != address {
+			from = utils.FormatAddressAsLink(t.From, "", false, false)
+		}
+		to := utils.FormatAddressWithLimits(t.To, "", false, "", 13, 0, false)
+		if fmt.Sprintf("%x", t.To) != address {
+			to = utils.FormatAddressAsLink(t.To, "", false, false)
+		}
+		tableData[i] = []interface{}{
+			utils.FormatTransactionHash(t.ParentHash),
+			utils.FormatTimeFromNow(t.Time.AsTime()),
+			from,
+			to,
+			utils.FormatAddressAsLink(t.TokenAddress, "", false, true),
+			new(big.Int).SetBytes(t.TokenId).String(),
+		}
+	}
+
+	data := &types.DataTableResponse{
+		Data:        tableData,
+		PagingToken: lastKey,
+	}
+
+	return data, nil
+}
+
+func (mongodb *Mongo) GetEth1ERC1155ForAddress(prefix string, limit int64) ([]*types.ETh1ERC1155Indexed, string, error) {
+	ctx, cancel := context.WithDeadline(context.Background(), time.Now().Add(time.Second*30))
+	defer cancel()
+
+	data := make([]*types.ETh1ERC1155Indexed, 0, limit)
+	keys := make([]string, 0, limit)
+	indexes := make([]string, 0, limit)
+
+	indexFilter := bson.D{{Key: "type", Value: "index"}, {Key: "key", Value: bson.D{{Key: "$regex", Value: prefix}}}}
+	idxcursor, err := mongodb.Db.Collection(DATA).Find(ctx, indexFilter, options.Find().SetLimit(limit))
+	var indexResults []*entity.Indexes
+	if err = idxcursor.All(ctx, &indexResults); err != nil {
+		logger.Errorf("error while parsing transaction data: %v", err)
+	}
+
+	for _, cur := range indexResults {
+		keys = append(keys, cur.Value)
+		indexes = append(indexes, cur.Key)
+	}
+	if len(keys) == 0 {
+		return data, "", nil
+	}
+
+	chainId := ""
+	var txHashes [][]byte
+	for _, key := range keys {
+		keysplit := strings.Split(key, ":")
+		chainId = keysplit[0]
+		txHash := keysplit[2]
+		txHashes = append(txHashes, []byte(txHash))
+	}
+
+	var results []*entity.ERC1155Index
+	filter := bson.D{{Key: "chainId", Value: chainId}, {Key: "type", Value: "erc1155index"}, {Key: "hash", Value: bson.D{{Key: "$in", Value: txHashes}}}}
+	cursor, err := mongodb.Db.Collection(DATA).Find(ctx, filter, options.Find().SetLimit(limit))
+	if err = cursor.All(ctx, &results); err != nil {
+		logger.Errorf("error while parsing transaction data: %v", err)
+	}
+
+	for _, result := range results {
+		data = append(data, &types.ETh1ERC1155Indexed{
+			ParentHash:   result.ParentHash,
+			BlockNumber:  result.BlockNumber,
+			TokenAddress: result.TokenAddress,
+			Time:         timestamppb.New(time.Unix(int64(result.Time.T), 0)),
+			From:         result.From,
+			To:           result.To,
+			Value:        result.Value,
+			TokenId:      result.TokenId,
+			Operator:     result.Operator,
+		})
+	}
+
+	return data, indexes[len(indexes)-1], nil
+}
+
+func (mongodb *Mongo) GetAddressErc1155TableData(address string, search string, pageToken string) (*types.DataTableResponse, error) {
+	if pageToken == "" {
+		pageToken = fmt.Sprintf("%s:I:ERC1155:%s:%s:", mongodb.ChainId, address, FILTER_TIME)
+	}
+
+	transactions, lastKey, err := mongodb.GetEth1ERC1155ForAddress(pageToken, 25)
+	if err != nil {
+		return nil, err
+	}
+
+	tableData := make([][]interface{}, len(transactions))
+	for i, t := range transactions {
+		from := utils.FormatAddressWithLimits(t.From, "", false, "", 13, 0, false)
+		if fmt.Sprintf("%x", t.From) != address {
+			from = utils.FormatAddressAsLink(t.From, "", false, false)
+		}
+		to := utils.FormatAddressWithLimits(t.To, "", false, "", 13, 0, false)
+		if fmt.Sprintf("%x", t.To) != address {
+			to = utils.FormatAddressAsLink(t.To, "", false, false)
+		}
+		tableData[i] = []interface{}{
+			utils.FormatTransactionHash(t.ParentHash),
+			utils.FormatTimeFromNow(t.Time.AsTime()),
+			from,
+			to,
+			utils.FormatAddressAsLink(t.TokenAddress, "", false, true),
+			new(big.Int).SetBytes(t.TokenId).String(),
+			new(big.Int).SetBytes(t.Value).String(),
+		}
+	}
+
+	data := &types.DataTableResponse{
+		Data:        tableData,
+		PagingToken: lastKey,
+	}
+
+	return data, nil
+}
+
+func (mongodb *Mongo) GetMetadataUpdates(prefix string, startToken string, limit int) ([]string, []*types.Eth1AddressBalance, error) {
+	ctx, cancel := context.WithDeadline(context.Background(), time.Now().Add(time.Minute*120))
+	defer cancel()
+
+	keys := make([]string, 0, limit)
+	pairs := make([]*types.Eth1AddressBalance, 0, limit)
+
+	prefixSplit := strings.Split(prefix, ":")
+	chainId := prefixSplit[0]
+
+	var results []*entity.BalanceUpdates
+	filter := bson.D{{Key: "chainId", Value: chainId}, {Key: "type", Value: "metadata_balances_updates"}}
+	cursor, err := mongodb.Db.Collection(METADATA_UPDATES).Find(ctx, filter, options.Find().SetLimit(int64(limit)))
+	if err = cursor.All(ctx, &results); err != nil {
+		return nil, nil, err
+	}
+
+	for _, result := range results {
+		keys = append(keys, result.Key)
+		pairs = append(pairs, &types.Eth1AddressBalance{
+			Address: result.Address,
+			Token:   result.Token,
+		})
+	}
+
+	if err == context.DeadlineExceeded && len(keys) > 0 {
+		return keys, pairs, nil
+	}
+	return keys, pairs, err
+}
+
 func (mongodb *Mongo) GetAddressNames(addresses map[string]string) error {
 	ctx, cancel := context.WithDeadline(context.Background(), time.Now().Add(time.Second*30))
 	defer cancel()
@@ -1813,9 +2147,12 @@ func (mongodb *Mongo) GetERC20MetadataForAddress(address []byte) (*types.ERC20Me
 }
 
 func (mongodb *Mongo) markBalanceUpdate(address []byte, token []byte, mutations interface{}, cache *freecache.Cache) {
+	balanceUpdateKey := fmt.Sprintf("%s:B:%x", mongodb.ChainId, address)                        // format is B: for balance update as chainid:prefix:address (token id will be encoded as column name)
 	balanceUpdateCacheKey := []byte(fmt.Sprintf("%s:B:%x:%x", mongodb.ChainId, address, token)) // format is B: for balance update as chainid:prefix:address (token id will be encoded as column name)
 	if _, err := cache.Get(balanceUpdateCacheKey); err != nil {
 		update := entity.BalanceUpdates{
+			Key:     balanceUpdateKey,
+			Type:    "metadata_balances_updates",
 			ChainId: mongodb.ChainId,
 			Token:   token,
 			Address: address,

@@ -64,15 +64,20 @@ type Series struct {
 }
 
 type BalanceUpdates struct {
-	ID      primitive.ObjectID `json:"_id,omitempty" bson:"_id,omitempty"`
-	ChainId string
-	Token   []byte
-	Address []byte
+	ID       primitive.ObjectID `json:"_id,omitempty" bson:"_id,omitempty"`
+	ChainId  string
+	Type     string
+	Key      string
+	Token    []byte
+	Address  []byte
+	Balance  []byte
+	Metadata *ERC20MetadataFamily
 }
 
 type BlockMetadataUpdates struct {
 	ID          primitive.ObjectID `json:"_id,omitempty" bson:"_id,omitempty"`
 	BlockNumber uint64
 	ChainId     uint64
+	Type        string
 	Keys        string
 }
