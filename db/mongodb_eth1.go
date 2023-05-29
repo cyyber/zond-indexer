@@ -3,9 +3,11 @@ package db
 import (
 	"bytes"
 	"context"
+	"encoding/hex"
 	"fmt"
 	"log"
 	"math/big"
+	"sort"
 	"strconv"
 	"strings"
 	"sync"
@@ -22,6 +24,7 @@ import (
 	"github.com/ethereum/go-ethereum/common"
 	"github.com/ethereum/go-ethereum/common/math"
 	eth_types "github.com/ethereum/go-ethereum/core/types"
+	"github.com/shopspring/decimal"
 	"github.com/sirupsen/logrus"
 	"go.mongodb.org/mongo-driver/bson"
 	"go.mongodb.org/mongo-driver/bson/primitive"
@@ -1960,7 +1963,7 @@ func (mongodb *Mongo) GetEth1ERC1155ForAddress(prefix string, limit int64) ([]*t
 	filter := bson.D{{Key: "chainId", Value: chainId}, {Key: "type", Value: "erc1155index"}, {Key: "hash", Value: bson.D{{Key: "$in", Value: txHashes}}}}
 	cursor, err := mongodb.Db.Collection(DATA).Find(ctx, filter, options.Find().SetLimit(limit))
 	if err = cursor.All(ctx, &results); err != nil {
-		logger.Errorf("error while parsing transaction data: %v", err)
+		logger.Errorf("error while parsing erc1155 data: %v", err)
 	}
 
 	for _, result := range results {
@@ -2050,6 +2053,133 @@ func (mongodb *Mongo) GetMetadataUpdates(prefix string, startToken string, limit
 	return keys, pairs, err
 }
 
+func (mongodb *Mongo) GetMetadataForAddress(address []byte) (*types.Eth1AddressMetadata, error) {
+	ctx, cancel := context.WithDeadline(context.Background(), time.Now().Add(time.Minute*120))
+	defer cancel()
+
+	addressHex := hex.EncodeToString(address)
+	ret := &types.Eth1AddressMetadata{
+		Balances: []*types.Eth1AddressBalance{},
+		ERC20:    &types.ERC20Metadata{},
+		Name:     "",
+		EthBalance: &types.Eth1AddressBalance{
+			Metadata: &types.ERC20Metadata{},
+		},
+	}
+
+	g := new(errgroup.Group)
+	mux := sync.Mutex{}
+
+	var results []*entity.AccountMetadataFamily
+	filter := bson.D{{Key: "chainId", Value: mongodb.ChainId}, {Key: "type", Value: ACCOUNT_METADATA_FAMILY}, {Key: "address", Value: addressHex}}
+	cursor, err := mongodb.Db.Collection(METADATA).Find(ctx, filter)
+	if err = cursor.All(ctx, &results); err != nil {
+		logger.Errorf("error while parsing account metadata: %v", err)
+	}
+
+	for _, result := range results {
+		resl := result
+		if bytes.Equal(address, ZERO_ADDRESS) && result.Token != "0x00" { //do not return token balances for the zero address
+			continue
+		}
+
+		g.Go(func() error {
+			token := common.FromHex(resl.Token)
+
+			if resl.Balance == 0 && len(token) > 1 {
+				return nil
+			}
+
+			balance := &types.Eth1AddressBalance{
+				Address: address,
+				Token:   token,
+				Balance: common.FromHex(fmt.Sprintf("%x", resl.Balance)),
+			}
+
+			metadata, err := mongodb.GetERC20MetadataForAddress(token)
+			if err != nil {
+				return err
+			}
+			balance.Metadata = metadata
+
+			mux.Lock()
+			if bytes.Equal([]byte{0x00}, token) {
+				ret.EthBalance = balance
+			} else {
+				ret.Balances = append(ret.Balances, balance)
+			}
+			mux.Unlock()
+
+			ret.Name = resl.Name
+
+			return nil
+		})
+	}
+
+	err = g.Wait()
+	if err != nil {
+		return nil, err
+	}
+
+	sort.Slice(ret.Balances, func(i, j int) bool {
+		priceI := decimal.New(0, 0)
+		priceJ := decimal.New(0, 0)
+		var err error
+
+		if string(ret.Balances[i].Metadata.Price) != "" {
+			priceI, err = decimal.NewFromString(string(ret.Balances[i].Metadata.Price))
+			if err != nil {
+				logger.WithError(err).Errorf("error parsing string price value, price: %s", ret.Balances[i].Metadata.Price)
+			}
+		}
+
+		if string(ret.Balances[j].Metadata.Price) != "" {
+			priceJ, err = decimal.NewFromString(string(ret.Balances[j].Metadata.Price))
+			if err != nil {
+				logger.WithError(err).Errorf("error parsing string price value, price: %s", ret.Balances[j].Metadata.Price)
+			}
+		}
+
+		mulI := decimal.NewFromFloat(float64(10)).Pow(decimal.NewFromBigInt(new(big.Int).SetBytes(ret.Balances[i].Metadata.Decimals), 0))
+		mulJ := decimal.NewFromFloat(float64(10)).Pow(decimal.NewFromBigInt(new(big.Int).SetBytes(ret.Balances[j].Metadata.Decimals), 0))
+		mkI := priceI.Mul(decimal.NewFromBigInt(new(big.Int).SetBytes(ret.Balances[i].Balance), 0).Div(mulI))
+		mkJ := priceJ.Mul(decimal.NewFromBigInt(new(big.Int).SetBytes(ret.Balances[j].Balance), 0).Div(mulJ))
+
+		return mkI.Cmp(mkJ) >= 0
+	})
+
+	return ret, nil
+}
+
+func (mongodb *Mongo) GetBalanceForAddress(address []byte, token []byte) (*types.Eth1AddressBalance, error) {
+	ctx, cancel := context.WithDeadline(context.Background(), time.Now().Add(time.Second*30))
+	defer cancel()
+
+	addressHex := hex.EncodeToString(address)
+	tokenHex := hex.EncodeToString(token)
+
+	var result *entity.AccountMetadataFamily
+	filter := bson.D{{Key: "chainId", Value: mongodb.ChainId}, {Key: "type", Value: ACCOUNT_METADATA_FAMILY}, {Key: "address", Value: addressHex}, {Key: "token", Value: tokenHex}}
+	err := mongodb.Db.Collection(METADATA).FindOne(ctx, filter).Decode(&result)
+	if err != nil {
+		return nil, err
+	}
+
+	ret := &types.Eth1AddressBalance{
+		Address: address,
+		Token:   token,
+		Balance: common.FromHex(fmt.Sprintf("%x", result.Balance)),
+	}
+
+	metadata, err := mongodb.GetERC20MetadataForAddress(token)
+	if err != nil {
+		return nil, err
+	}
+	ret.Metadata = metadata
+
+	return ret, nil
+}
+
 func (mongodb *Mongo) GetAddressNames(addresses map[string]string) error {
 	ctx, cancel := context.WithDeadline(context.Background(), time.Now().Add(time.Second*30))
 	defer cancel()
@@ -2127,7 +2257,7 @@ func (mongodb *Mongo) GetERC20MetadataForAddress(address []byte) (*types.ERC20Me
 	}
 
 	var result *entity.ERC20MetadataFamily
-	filter := bson.D{{Key: "chainId", Value: mongodb.ChainId}, {Key: "type", Value: ERC20_METADATA_FAMILY}, {Key: "address", Value: string(address)}}
+	filter := bson.D{{Key: "chainId", Value: mongodb.ChainId}, {Key: "type", Value: ERC20_METADATA_FAMILY}, {Key: "address", Value: fmt.Sprintf("%x", address)}}
 	err := mongodb.Db.Collection(METADATA).FindOne(ctx, filter).Decode(&result)
 	if err != nil {
 		return nil, err
@@ -2144,6 +2274,73 @@ func (mongodb *Mongo) GetERC20MetadataForAddress(address []byte) (*types.ERC20Me
 		OfficialSite: result.OfficialSite,
 		Price:        result.Price,
 	}, nil
+}
+
+func (mongodb *Mongo) SaveERC20Metadata(address []byte, metadata *types.ERC20Metadata) error {
+	ctx, cancel := context.WithDeadline(context.Background(), time.Now().Add(time.Second*30))
+	defer cancel()
+
+	ercMetadataInput := &entity.ERC20MetadataFamily{}
+	if len(metadata.Decimals) > 0 {
+		ercMetadataInput.Decimals = metadata.Decimals
+	}
+	if len(metadata.TotalSupply) > 0 {
+		ercMetadataInput.TotalSupply = metadata.TotalSupply
+	}
+	if len(metadata.Name) > 0 {
+		ercMetadataInput.Name = metadata.Name
+	}
+	if len(metadata.Price) > 0 {
+		ercMetadataInput.Price = metadata.Price
+	}
+	if len(metadata.Logo) > 0 && len(metadata.LogoFormat) > 0 {
+		ercMetadataInput.Logo = metadata.Logo
+		ercMetadataInput.Logoformat = metadata.LogoFormat
+	}
+
+	doc, err := utils.ToDoc(ercMetadataInput)
+	if err != nil {
+		return err
+	}
+
+	_, err = mongodb.Db.Collection(METADATA).InsertOne(ctx, doc)
+	if err != nil {
+		return err
+	}
+
+	return nil
+}
+
+func (mongodb *Mongo) GetAddressName(address []byte) (string, error) {
+	ctx, cancel := context.WithDeadline(context.Background(), time.Now().Add(time.Second*30))
+	defer cancel()
+
+	rowKey := fmt.Sprintf("%s:%x", mongodb.ChainId, address)
+	cacheKey := mongodb.ChainId + ":NAME:" + rowKey
+
+	if wanted, err := cache.TieredCache.GetStringWithLocalTimeout(cacheKey, time.Hour*24); err == nil {
+		// logrus.Infof("retrieved name for address %x from cache", address)
+		return wanted, nil
+	}
+
+	addressHex := hex.EncodeToString(address)
+
+	var result *entity.AccountMetadataFamily
+	filter := bson.D{{Key: "chainId", Value: mongodb.ChainId}, {Key: "type", Value: ACCOUNT_METADATA_FAMILY}, {Key: "address", Value: addressHex}}
+	err := mongodb.Db.Collection(METADATA).FindOne(ctx, filter).Decode(&result)
+	if err != nil {
+		return "", err
+	}
+
+	if err != nil || result == nil {
+		err = cache.TieredCache.SetString(cacheKey, "", time.Hour)
+		return "", err
+	}
+
+	wanted := result.Name
+	err = cache.TieredCache.SetString(cacheKey, wanted, time.Hour)
+
+	return wanted, err
 }
 
 func (mongodb *Mongo) markBalanceUpdate(address []byte, token []byte, mutations interface{}, cache *freecache.Cache) {
