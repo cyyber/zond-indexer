@@ -21,6 +21,7 @@ import (
 	"github.com/Prajjawalk/zond-indexer/types"
 	"github.com/Prajjawalk/zond-indexer/utils"
 	"github.com/coocood/freecache"
+	"github.com/ethereum/go-ethereum/accounts/abi"
 	"github.com/ethereum/go-ethereum/common"
 	"github.com/ethereum/go-ethereum/common/math"
 	eth_types "github.com/ethereum/go-ethereum/core/types"
@@ -115,7 +116,7 @@ func (mongodb *Mongo) SaveBlock(block *types.Eth1Block) error {
 	blockInput := &entity.BlockData{}
 	blockInput.Eth1Block = *block
 	blockInput.ChainId = mongodb.ChainId
-	doc, err := utils.ToDoc(block)
+	doc, err := utils.ToDoc(blockInput)
 	if err != nil {
 		return err
 	}
@@ -2086,7 +2087,7 @@ func (mongodb *Mongo) GetMetadataForAddress(address []byte) (*types.Eth1AddressM
 		g.Go(func() error {
 			token := common.FromHex(resl.Token)
 
-			if resl.Balance == 0 && len(token) > 1 {
+			if resl.Balance == *big.NewInt(0) && len(token) > 1 {
 				return nil
 			}
 
@@ -2341,6 +2342,236 @@ func (mongodb *Mongo) GetAddressName(address []byte) (string, error) {
 	err = cache.TieredCache.SetString(cacheKey, wanted, time.Hour)
 
 	return wanted, err
+}
+
+func (mongodb *Mongo) SaveAddressName(address []byte, name string) error {
+	ctx, cancel := context.WithDeadline(context.Background(), time.Now().Add(time.Second*30))
+	defer cancel()
+
+	addressHex := hex.EncodeToString(address)
+	filter := bson.D{{Key: "chainId", Value: mongodb.ChainId}, {Key: "type", Value: ACCOUNT_METADATA_FAMILY}, {Key: "address", Value: addressHex}}
+	update := bson.D{{Key: "$set", Value: bson.D{{Key: "name", Value: name}}}}
+	opts := options.Update().SetUpsert(true)
+
+	_, err := mongodb.Db.Collection(METADATA).UpdateOne(ctx, filter, update, opts)
+	if err != nil {
+		log.Fatal(err)
+	}
+
+	return nil
+}
+
+func (mongodb *Mongo) GetContractMetadata(address []byte) (*types.ContractMetadata, error) {
+	ctx, cancel := context.WithDeadline(context.Background(), time.Now().Add(time.Second*30))
+	defer cancel()
+
+	rowKey := fmt.Sprintf("%s:%x", mongodb.ChainId, address)
+	cacheKey := mongodb.ChainId + ":CONTRACT:" + rowKey
+	if cached, err := cache.TieredCache.GetWithLocalTimeout(cacheKey, time.Hour*24, new(types.ContractMetadata)); err == nil {
+		ret := cached.(*types.ContractMetadata)
+		val, err := abi.JSON(bytes.NewReader(ret.ABIJson))
+		ret.ABI = &val
+		return ret, err
+	}
+
+	addressHex := hex.EncodeToString(address)
+	var result *entity.ContractMetadataFamily
+	ret := &types.ContractMetadata{}
+	filter := bson.D{{Key: "chainId", Value: mongodb.ChainId}, {Key: "address", Value: addressHex}, {Key: "type", Value: CONTRACT_METADATA_FAMILY}}
+	err := mongodb.Db.Collection(METADATA).FindOne(ctx, filter).Decode(&result)
+	if err != nil || result == nil {
+		ret, err := utils.TryFetchContractMetadata(address)
+
+		if err != nil {
+			if err == utils.ErrRateLimit {
+				logrus.Warnf("Hit rate limit when fetching contract metadata for address %x", address)
+			} else {
+				utils.LogError(err, "Fetching contract metadata", 0, fmt.Sprintf("%x", address))
+				err := cache.TieredCache.Set(cacheKey, &types.ContractMetadata{}, time.Hour*24)
+				if err != nil {
+					utils.LogError(err, "Caching contract metadata", 0, fmt.Sprintf("%x", address))
+				}
+			}
+			return nil, err
+		}
+
+		// No contract found, caching empty
+		if ret == nil {
+			err = cache.TieredCache.Set(cacheKey, &types.ContractMetadata{}, time.Hour*24)
+			if err != nil {
+				utils.LogError(err, "Caching contract metadata", 0, fmt.Sprintf("%x", address))
+			}
+			return nil, nil
+		}
+
+		err = cache.TieredCache.Set(cacheKey, ret, time.Hour*24)
+		if err != nil {
+			utils.LogError(err, "Caching contract metadata", 0, fmt.Sprintf("%x", address))
+		}
+
+		err = mongodb.SaveContractMetadata(address, ret)
+		if err != nil {
+			logger.Errorf("error saving contract metadata to bigtable: %v", err)
+		}
+		return ret, nil
+	}
+
+	ret.Name = result.Name
+	ret.ABIJson = result.Abi
+	val, err := abi.JSON(bytes.NewReader(ret.ABIJson))
+
+	if err != nil {
+		logrus.Fatalf("error decoding abi for address 0x%x: %v", address, err)
+	}
+	ret.ABI = &val
+
+	err = cache.TieredCache.Set(cacheKey, ret, time.Hour*24)
+	return ret, err
+}
+
+func (mongodb *Mongo) SaveContractMetadata(address []byte, metadata *types.ContractMetadata) error {
+	ctx, cancel := context.WithDeadline(context.Background(), time.Now().Add(time.Second*30))
+	defer cancel()
+
+	inputContractMetadata := &entity.ContractMetadataFamily{}
+	inputContractMetadata.Name = metadata.Name
+	inputContractMetadata.Abi = metadata.ABIJson
+	inputContractMetadata.Address = hex.EncodeToString(address)
+
+	doc, err := utils.ToDoc(inputContractMetadata)
+	if err != nil {
+		return err
+	}
+
+	_, err = mongodb.Db.Collection(METADATA).InsertOne(ctx, doc)
+	if err != nil {
+		return err
+	}
+
+	return nil
+}
+
+func (mongodb *Mongo) SaveBalances(balances []*types.Eth1AddressBalance, deleteKeys []string) error {
+	if len(balances) == 0 {
+		return nil
+	}
+
+	var bulkData []mongo.WriteModel
+	var bulkMetadataUpdates []mongo.WriteModel
+
+	for _, balance := range balances {
+		balanceMetadata := &entity.AccountMetadataFamily{}
+		balanceMetadata.ChainId = mongodb.ChainId
+		balanceMetadata.Type = ACCOUNT_METADATA_FAMILY
+		balanceMetadata.Name = balance.Metadata.Name
+		balanceMetadata.Balance = *new(big.Int).SetBytes(balance.Balance)
+		balanceMetadata.Token = hex.EncodeToString(balance.Token)
+		balanceMetadata.Address = hex.EncodeToString(balance.Address)
+
+		doc, err := utils.ToDoc(balanceMetadata)
+		if err != nil {
+			return err
+		}
+
+		filter := bson.D{{Key: "chainId", Value: mongodb.ChainId}, {Key: "address", Value: hex.EncodeToString(balance.Address)}, {Key: "type", Value: ACCOUNT_METADATA_FAMILY}}
+		insertBlock := mongo.NewUpdateOneModel().SetFilter(filter).SetUpdate(doc).SetUpsert(true)
+		bulkData = append(bulkData, insertBlock)
+	}
+
+	_, err := mongodb.Db.Collection(METADATA).BulkWrite(context.TODO(), bulkData)
+	if err != nil {
+		return err
+	}
+
+	if len(deleteKeys) == 0 {
+		return nil
+	}
+
+	for _, key := range deleteKeys {
+		filter := bson.D{{Key: "chainId", Value: mongodb.ChainId}, {Key: "key", Value: key}, {Key: "type", Value: "metadata_balances_updates"}}
+		bulkMetadataUpdates = append(bulkMetadataUpdates, mongo.NewDeleteOneModel().SetFilter(filter))
+	}
+
+	_, err = mongodb.Db.Collection(METADATA_UPDATES).BulkWrite(context.TODO(), bulkMetadataUpdates)
+	if err != nil {
+		return err
+	}
+
+	return nil
+}
+
+func (mongodb *Mongo) SaveERC20TokenPrices(prices []*types.ERC20TokenPrice) error {
+	if len(prices) == 0 {
+		return nil
+	}
+
+	var bulkData []mongo.WriteModel
+
+	for _, price := range prices {
+		erc20Metadata := &entity.ERC20MetadataFamily{}
+		erc20Metadata.ChainId = mongodb.ChainId
+		erc20Metadata.Type = ERC20_METADATA_FAMILY
+		erc20Metadata.Address = hex.EncodeToString(price.Token)
+		erc20Metadata.Price = price.Price
+		erc20Metadata.TotalSupply = price.TotalSupply
+
+		doc, err := utils.ToDoc(erc20Metadata)
+		if err != nil {
+			return err
+		}
+
+		filter := bson.D{{Key: "chainId", Value: mongodb.ChainId}, {Key: "type", Value: ERC20_METADATA_FAMILY}, {Key: "address", Value: hex.EncodeToString(price.Token)}}
+		insertBlock := mongo.NewUpdateOneModel().SetFilter(filter).SetUpdate(doc).SetUpsert(true)
+		bulkData = append(bulkData, insertBlock)
+	}
+
+	_, err := mongodb.Db.Collection(METADATA).BulkWrite(context.TODO(), bulkData)
+	if err != nil {
+		return err
+	}
+
+	return nil
+}
+
+func (mongodb *Mongo) SaveBlockKeys(blockNumber uint64, blockHash []byte, keys string) error {
+	ctx, cancel := context.WithDeadline(context.Background(), time.Now().Add(time.Second*30))
+	defer cancel()
+
+	inputKeys := &entity.BlockMetadataUpdates{}
+	inputKeys.Type = "metadata_block_keys"
+	inputKeys.BlockNumber = blockNumber
+	inputKeys.BlockHash = hex.EncodeToString(blockHash)
+	inputKeys.ChainId = mongodb.ChainId
+	inputKeys.Keys = keys
+
+	doc, err := utils.ToDoc(inputKeys)
+	if err != nil {
+		return err
+	}
+
+	filter := bson.D{{Key: "chainId", Value: mongodb.ChainId}, {Key: "blocknumber", Value: blockNumber}}
+	_, err = mongodb.Db.Collection(METADATA_UPDATES).UpdateOne(ctx, filter, doc, options.Update().SetUpsert(true))
+
+	return err
+}
+
+func (mongodb *Mongo) GetBlockKeys(blockNumber uint64, blockHash []byte) ([]string, error) {
+	ctx, cancel := context.WithDeadline(context.Background(), time.Now().Add(time.Second*30))
+	defer cancel()
+
+	var result *entity.BlockMetadataUpdates
+	filter := bson.D{{Key: "chainId", Value: mongodb.ChainId}, {Key: "blocknumber", Value: blockNumber}, {Key: "blockhash", Value: hex.EncodeToString(blockHash)}}
+	err := mongodb.Db.Collection(METADATA_UPDATES).FindOne(ctx, filter).Decode(result)
+
+	if err != nil {
+		return nil, err
+	}
+
+	if result == nil {
+		return nil, fmt.Errorf("keys for block %v not found", blockNumber)
+	}
+
+	return strings.Split(string(result.Keys), ","), nil
 }
 
 func (mongodb *Mongo) markBalanceUpdate(address []byte, token []byte, mutations interface{}, cache *freecache.Cache) {

@@ -1,24 +1,32 @@
 package entity
 
-import "go.mongodb.org/mongo-driver/bson/primitive"
+import (
+	"math/big"
+
+	"go.mongodb.org/mongo-driver/bson/primitive"
+)
 
 type AccountMetadataFamily struct {
 	ID      primitive.ObjectID `json:"_id,omitempty" bson:"_id,omitempty"`
+	ChainId string
 	Type    string
 	Name    string
-	Balance uint64
+	Balance big.Int
 	Token   string
 	Address string
 }
 
 type ContractMetadataFamily struct {
-	ID   primitive.ObjectID `json:"_id,omitempty" bson:"_id,omitempty"`
-	Name string
-	Abi  []byte
+	ID      primitive.ObjectID `json:"_id,omitempty" bson:"_id,omitempty"`
+	ChainId string
+	Name    string
+	Abi     []byte
+	Address string
 }
 
 type ERC20MetadataFamily struct {
 	ID           primitive.ObjectID `json:"_id,omitempty" bson:"_id,omitempty"`
+	ChainId      string
 	Type         string
 	Address      string
 	Name         string
@@ -77,7 +85,8 @@ type BalanceUpdates struct {
 type BlockMetadataUpdates struct {
 	ID          primitive.ObjectID `json:"_id,omitempty" bson:"_id,omitempty"`
 	BlockNumber uint64
-	ChainId     uint64
+	BlockHash   string
+	ChainId     string
 	Type        string
 	Keys        string
 }

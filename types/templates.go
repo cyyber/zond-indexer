@@ -4,6 +4,8 @@ import (
 	"html/template"
 	"math/big"
 	"time"
+
+	"github.com/ethereum/go-ethereum/accounts/abi"
 )
 
 // DataTableResponse is a struct to hold data for data table responses
@@ -168,4 +170,30 @@ type Eth1AddressMetadata struct {
 	Name       string
 	Tags       []template.HTML
 	EthBalance *Eth1AddressBalance
+}
+
+type ContractMetadata struct {
+	Name    string
+	ABI     *abi.ABI `msgpack:"-"`
+	ABIJson []byte
+}
+
+type EtherscanContractMetadata struct {
+	Message string `json:"message"`
+	Result  []struct {
+		Abi                  string `json:"ABI"`
+		CompilerVersion      string `json:"CompilerVersion"`
+		ConstructorArguments string `json:"ConstructorArguments"`
+		ContractName         string `json:"ContractName"`
+		EVMVersion           string `json:"EVMVersion"`
+		Implementation       string `json:"Implementation"`
+		Library              string `json:"Library"`
+		LicenseType          string `json:"LicenseType"`
+		OptimizationUsed     string `json:"OptimizationUsed"`
+		Proxy                string `json:"Proxy"`
+		Runs                 string `json:"Runs"`
+		SourceCode           string `json:"SourceCode"`
+		SwarmSource          string `json:"SwarmSource"`
+	} `json:"result"`
+	Status string `json:"status"`
 }

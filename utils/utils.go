@@ -1,17 +1,23 @@
 package utils
 
 import (
+	"encoding/json"
+	"errors"
 	"fmt"
+	"io/ioutil"
 	"math/big"
+	"net/http"
 	"os"
 	"path/filepath"
 	"regexp"
 	"runtime"
+	"strings"
 	"time"
 
 	"github.com/Prajjawalk/zond-indexer/config"
 	"github.com/Prajjawalk/zond-indexer/price"
 	"github.com/Prajjawalk/zond-indexer/types"
+	"github.com/ethereum/go-ethereum/accounts/abi"
 	"github.com/kelseyhightower/envconfig"
 	"github.com/mvdan/xurls"
 	"github.com/sirupsen/logrus"
@@ -22,6 +28,7 @@ import (
 // Config is the globally accessible configuration
 var Config *types.Config
 var eth1AddressRE = regexp.MustCompile("^(0x)?[0-9a-fA-F]{40}$")
+var ErrRateLimit = errors.New("## RATE LIMIT ##")
 
 func readConfigEnv(cfg *types.Config) error {
 	return envconfig.Process("", cfg)
@@ -288,4 +295,64 @@ func FormatThousandsEnglish(number string) string {
 	}
 
 	return string(res)
+}
+
+func getABIFromEtherscan(address []byte) (*types.ContractMetadata, error) {
+	baseUrl := "api.etherscan.io"
+	if Config.Chain.Config.DepositChainID == 5 {
+		baseUrl = "api-goerli.etherscan.io"
+	}
+
+	httpClient := http.Client{Timeout: time.Second * 5}
+	resp, err := httpClient.Get(fmt.Sprintf("https://%s/api?module=contract&action=getsourcecode&address=0x%x&apikey=%s", baseUrl, address, Config.EtherscanAPIKey))
+	if err != nil {
+		return nil, err
+	}
+
+	if resp.StatusCode != 200 {
+		return nil, fmt.Errorf("StatusCode: '%d', Status: '%s'", resp.StatusCode, resp.Status)
+	}
+
+	body, err := ioutil.ReadAll(resp.Body)
+	if err != nil {
+		return nil, err
+	}
+
+	headerData := &struct {
+		Status  string `json:"status"`
+		Message string `json:"message"`
+	}{}
+	err = json.Unmarshal(body, headerData)
+	if err != nil {
+		return nil, err
+	}
+	if headerData.Status == "0" {
+		if headerData.Message == "NOTOK" {
+			return nil, ErrRateLimit
+		}
+		return nil, fmt.Errorf("%s", headerData.Message)
+	}
+
+	data := &types.EtherscanContractMetadata{}
+	err = json.Unmarshal(body, data)
+	if err != nil {
+		return nil, err
+	}
+	if data.Result[0].Abi == "Contract source code not verified" {
+		return nil, nil
+	}
+
+	contractAbi, err := abi.JSON(strings.NewReader(data.Result[0].Abi))
+	if err != nil {
+		return nil, err
+	}
+	meta := &types.ContractMetadata{}
+	meta.ABIJson = []byte(data.Result[0].Abi)
+	meta.ABI = &contractAbi
+	meta.Name = data.Result[0].ContractName
+	return meta, nil
+}
+
+func TryFetchContractMetadata(address []byte) (*types.ContractMetadata, error) {
+	return getABIFromEtherscan(address)
 }
