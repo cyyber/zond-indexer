@@ -8,3 +8,9 @@ type MachineMetricSystemUser struct {
 	FiveMinuteOldData         *MachineMetricSystem
 	FiveMinuteOldDataInsertTs int64
 }
+
+type Eth1AddressSearchItem struct {
+	Address string `json:"address"`
+	Name    string `json:"name"`
+	Token   string `json:"token"`
+}
