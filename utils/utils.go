@@ -1,10 +1,13 @@
 package utils
 
 import (
+	"bytes"
+	"encoding/hex"
 	"encoding/json"
 	"errors"
 	"fmt"
 	"io/ioutil"
+	"log"
 	"math/big"
 	"net/http"
 	"os"
@@ -13,6 +16,7 @@ import (
 	"runtime"
 	"strings"
 	"time"
+	"unicode/utf8"
 
 	"github.com/Prajjawalk/zond-indexer/config"
 	"github.com/Prajjawalk/zond-indexer/price"
@@ -20,6 +24,8 @@ import (
 	"github.com/ethereum/go-ethereum/accounts/abi"
 	"github.com/kelseyhightower/envconfig"
 	"github.com/mvdan/xurls"
+	"github.com/prysmaticlabs/prysm/v3/beacon-chain/core/signing"
+	prysm_params "github.com/prysmaticlabs/prysm/v3/config/params"
 	"github.com/sirupsen/logrus"
 	"go.mongodb.org/mongo-driver/bson"
 	"gopkg.in/yaml.v2"
@@ -355,4 +361,77 @@ func getABIFromEtherscan(address []byte) (*types.ContractMetadata, error) {
 
 func TryFetchContractMetadata(address []byte) (*types.ContractMetadata, error) {
 	return getABIFromEtherscan(address)
+}
+
+// SlotToTime returns a time.Time to slot
+func SlotToTime(slot uint64) time.Time {
+	return time.Unix(int64(Config.Chain.GenesisTimestamp+slot*Config.Chain.Config.SecondsPerSlot), 0)
+}
+
+// TimeToEpoch will return an epoch for a given time
+func TimeToEpoch(ts time.Time) int64 {
+	if int64(Config.Chain.GenesisTimestamp) > ts.Unix() {
+		return 0
+	}
+	return (ts.Unix() - int64(Config.Chain.GenesisTimestamp)) / int64(Config.Chain.Config.SecondsPerSlot) / int64(Config.Chain.Config.SlotsPerEpoch)
+}
+
+// DayOfSlot returns the corresponding day of a slot
+func DayOfSlot(slot uint64) uint64 {
+	return Config.Chain.Config.SecondsPerSlot * slot / (24 * 3600)
+}
+
+// TimeToSlot returns time to slot in seconds
+func TimeToSlot(timestamp uint64) uint64 {
+	if Config.Chain.GenesisTimestamp > timestamp {
+		return 0
+	}
+	return (timestamp - Config.Chain.GenesisTimestamp) / Config.Chain.Config.SecondsPerSlot
+}
+
+func GetSigningDomain() ([]byte, error) {
+	beaconConfig := prysm_params.BeaconConfig()
+	genForkVersion, err := hex.DecodeString(strings.Replace(Config.Chain.Config.GenesisForkVersion, "0x", "", -1))
+	if err != nil {
+		return nil, err
+	}
+
+	domain, err := signing.ComputeDomain(
+		beaconConfig.DomainDeposit,
+		genForkVersion,
+		beaconConfig.ZeroHash[:],
+	)
+
+	if err != nil {
+		return nil, err
+	}
+
+	return domain, err
+}
+
+func GraffitiToSring(graffiti []byte) string {
+	s := strings.Map(fixUtf, string(bytes.Trim(graffiti, "\x00")))
+	s = strings.Replace(s, "\u0000", "", -1) // rempove 0x00 bytes as it is not supported in postgres
+
+	if !utf8.ValidString(s) {
+		return "INVALID_UTF8_STRING"
+	}
+
+	return s
+}
+
+func fixUtf(r rune) rune {
+	if r == utf8.RuneError {
+		return -1
+	}
+	return r
+}
+
+// MustParseHex will parse a string into hex
+func MustParseHex(hexString string) []byte {
+	data, err := hex.DecodeString(strings.Replace(hexString, "0x", "", -1))
+	if err != nil {
+		log.Fatal(err)
+	}
+	return data
 }

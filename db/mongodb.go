@@ -10,7 +10,7 @@ import (
 	"time"
 
 	"github.com/Prajjawalk/zond-indexer/entity"
-	"github.com/Prajjawalk/zond-indexer/services"
+	// "github.com/Prajjawalk/zond-indexer/services"
 	"github.com/Prajjawalk/zond-indexer/types"
 	"github.com/Prajjawalk/zond-indexer/utils"
 	"go.mongodb.org/mongo-driver/bson"
@@ -28,6 +28,7 @@ var ATTESTATIONS_FAMILY = "at"
 var max_block_number = uint64(1000000000)
 var INCOME_DETAILS_COLUMN_FAMILY = "id"
 var STATS_COLUMN_FAMILY = "stats"
+var SERIES_FAMILY = "series"
 
 var MongodbClient *Mongo
 
@@ -201,7 +202,7 @@ func getMachineMetrics[T types.MachineMetricSystem | types.MachineMetricNode | t
 	return res, nil
 }
 
-func (mongodb *Mongo) GetMachineMetricsForNotifications(eventList []services.MachineEvents) (map[uint64]map[string]*types.MachineMetricSystemUser, error) {
+func (mongodb *Mongo) GetMachineMetricsForNotifications(eventList []entity.MachineMetrics) (map[uint64]map[string]*types.MachineMetricSystemUser, error) {
 	ctx, cancel := context.WithDeadline(context.Background(), time.Now().Add(time.Second*200))
 	defer cancel()
 	res := make(map[uint64]map[string]*types.MachineMetricSystemUser) // userID -> machine -> data
@@ -210,7 +211,7 @@ func (mongodb *Mongo) GetMachineMetricsForNotifications(eventList []services.Mac
 	count := 0
 
 	for _, i := range eventList {
-		filter := bson.M{"userID": i.UserID, "machine": i.MachineName, "process": "system"}
+		filter := bson.M{"userID": i.UserID, "machine": i.Machine, "process": "system"}
 		cursor, err := mongodb.Db.Collection(MACHINE_METRICS).Find(ctx, filter, options.Find().SetLimit(int64(limit)))
 		if err != nil {
 			return nil, err
@@ -225,21 +226,21 @@ func (mongodb *Mongo) GetMachineMetricsForNotifications(eventList []services.Mac
 			res[i.UserID] = make(map[string]*types.MachineMetricSystemUser)
 		}
 
-		last, found := res[i.UserID][i.MachineName]
+		last, found := res[i.UserID][i.Machine]
 
 		if found && count == limit-1 {
-			res[i.UserID][i.MachineName] = &types.MachineMetricSystemUser{
+			res[i.UserID][i.Machine] = &types.MachineMetricSystemUser{
 				UserID:                    i.UserID,
-				Machine:                   i.MachineName,
+				Machine:                   i.Machine,
 				CurrentData:               last.CurrentData,
 				FiveMinuteOldData:         &result,
 				CurrentDataInsertTs:       last.CurrentDataInsertTs,
 				FiveMinuteOldDataInsertTs: time.Now().Unix(), //this field is gcp_bigtable ReadItem timestamp
 			}
 		} else {
-			res[i.UserID][i.MachineName] = &types.MachineMetricSystemUser{
+			res[i.UserID][i.Machine] = &types.MachineMetricSystemUser{
 				UserID:                    i.UserID,
-				Machine:                   i.MachineName,
+				Machine:                   i.Machine,
 				CurrentData:               &result,
 				FiveMinuteOldData:         nil,
 				CurrentDataInsertTs:       time.Now().Unix(), //this field is gcp_bigtable ReadItem timestamp

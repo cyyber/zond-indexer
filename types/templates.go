@@ -197,3 +197,138 @@ type EtherscanContractMetadata struct {
 	} `json:"result"`
 	Status string `json:"status"`
 }
+
+// EpochsPageData is a struct to hold epoch data for the epochs page
+type EthOneDepositsData struct {
+	TxHash                []byte    `db:"tx_hash"`
+	TxInput               []byte    `db:"tx_input"`
+	TxIndex               uint64    `db:"tx_index"`
+	BlockNumber           uint64    `db:"block_number"`
+	BlockTs               time.Time `db:"block_ts"`
+	FromAddress           []byte    `db:"from_address"`
+	PublicKey             []byte    `db:"publickey"`
+	WithdrawalCredentials []byte    `db:"withdrawal_credentials"`
+	Amount                uint64    `db:"amount"`
+	Signature             []byte    `db:"signature"`
+	MerkletreeIndex       []byte    `db:"merkletree_index"`
+	State                 string    `db:"state"`
+	ValidSignature        bool      `db:"valid_signature"`
+}
+
+type EthOneDepositLeaderboardData struct {
+	FromAddress        []byte `db:"from_address"`
+	Amount             uint64 `db:"amount"`
+	ValidCount         uint64 `db:"validcount"`
+	InvalidCount       uint64 `db:"invalidcount"`
+	TotalCount         uint64 `db:"totalcount"`
+	PendingCount       uint64 `db:"pendingcount"`
+	SlashedCount       uint64 `db:"slashedcount"`
+	ActiveCount        uint64 `db:"activecount"`
+	VoluntaryExitCount uint64 `db:"voluntary_exit_count"`
+}
+
+type EthTwoDepositData struct {
+	BlockSlot             uint64 `db:"block_slot"`
+	BlockIndex            uint64 `db:"block_index"`
+	Proof                 []byte `db:"proof"`
+	Publickey             []byte `db:"publickey"`
+	ValidatorIndex        uint64 `db:"validatorindex"`
+	Withdrawalcredentials []byte `db:"withdrawalcredentials"`
+	Amount                uint64 `db:"amount"`
+	Signature             []byte `db:"signature"`
+}
+
+type ValidatorDeposits struct {
+	Eth1Deposits      []Eth1Deposit
+	LastEth1DepositTs int64
+	Eth2Deposits      []Eth2Deposit
+}
+
+// Eth1Deposit is a struct to hold eth1-deposit data
+type Eth1Deposit struct {
+	TxHash                []byte `db:"tx_hash"`
+	TxInput               []byte `db:"tx_input"`
+	TxIndex               uint64 `db:"tx_index"`
+	BlockNumber           uint64 `db:"block_number"`
+	BlockTs               int64  `db:"block_ts"`
+	FromAddress           []byte `db:"from_address"`
+	PublicKey             []byte `db:"publickey"`
+	WithdrawalCredentials []byte `db:"withdrawal_credentials"`
+	Amount                uint64 `db:"amount"`
+	Signature             []byte `db:"signature"`
+	MerkletreeIndex       []byte `db:"merkletree_index"`
+	Removed               bool   `db:"removed"`
+	ValidSignature        bool   `db:"valid_signature"`
+}
+
+// Eth2Deposit is a struct to hold eth2-deposit data
+type Eth2Deposit struct {
+	BlockSlot             uint64 `db:"block_slot"`
+	BlockIndex            uint64 `db:"block_index"`
+	BlockRoot             []byte `db:"block_root"`
+	Proof                 []byte `db:"proof"`
+	Publickey             []byte `db:"publickey"`
+	Withdrawalcredentials []byte `db:"withdrawalcredentials"`
+	Amount                uint64 `db:"amount"`
+	Signature             []byte `db:"signature"`
+}
+
+type SlotVizSlots struct {
+	BlockRoot []byte
+	Epoch     uint64
+	Slot      uint64
+	Status    string `json:"status"`
+	Active    bool   `json:"active"`
+}
+type SlotVizEpochs struct {
+	Epoch          uint64          `json:"epoch"`
+	Finalized      bool            `json:"finalized"`
+	Justified      bool            `json:"justified"`
+	Justifying     bool            `json:"justifying"`
+	Particicpation float64         `json:"participation"`
+	Slots          []*SlotVizSlots `json:"slots"`
+}
+
+// AdConfig is a struct to hold the configuration for one specific ad banner placement
+type AdConfig struct {
+	Id              string `db:"id"`
+	TemplateId      string `db:"template_id"`
+	JQuerySelector  string `db:"jquery_selector"`
+	InsertMode      string `db:"insert_mode"`
+	RefreshInterval uint64 `db:"refresh_interval"`
+	Enabled         bool   `db:"enabled"`
+	ForAllUsers     bool   `db:"for_all_users"`
+	BannerId        uint64 `db:"banner_id"`
+	HtmlContent     string `db:"html_content"`
+}
+
+type BLSChange struct {
+	Slot           uint64 `db:"slot" json:"slot,omitempty"`
+	BlockRoot      []byte `db:"block_rot" json:"blockroot,omitempty"`
+	Validatorindex uint64 `db:"validatorindex" json:"validatorindex,omitempty"`
+	BlsPubkey      []byte `db:"pubkey" json:"pubkey,omitempty"`
+	Address        []byte `db:"address" json:"address,omitempty"`
+	Signature      []byte `db:"signature" json:"signature,omitempty"`
+}
+
+type ExplorerConfigurationCategory string
+type ExplorerConfigurationKey string
+type ExplorerConfigValue struct {
+	Value    string `db:"value"`
+	DataType string `db:"data_type"`
+}
+type ExplorerConfig struct {
+	Category ExplorerConfigurationCategory `db:"category"`
+	Key      ExplorerConfigurationKey      `db:"key"`
+	ExplorerConfigValue
+}
+
+type ValidatorsBLSChange struct {
+	Slot                     uint64 `db:"slot" json:"slot,omitempty"`
+	BlockRoot                []byte `db:"block_root" json:"blockroot,omitempty"`
+	Validatorindex           uint64 `db:"validatorindex" json:"validatorindex,omitempty"`
+	BlsPubkey                []byte `db:"pubkey" json:"pubkey,omitempty"`
+	Address                  []byte `db:"address" json:"address,omitempty"`
+	Signature                []byte `db:"signature" json:"signature,omitempty"`
+	WithdrawalCredentialsOld []byte `db:"withdrawalcredentials" json:"withdrawalcredentials,omitempty"`
+}

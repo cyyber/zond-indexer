@@ -1,6 +1,42 @@
 package types
 
-import "database/sql"
+import (
+	"database/sql"
+
+	"github.com/jackc/pgtype"
+	"github.com/shopspring/decimal"
+)
+
+// ChainHead is a struct to hold chain head data
+type ChainHead struct {
+	HeadSlot                   uint64
+	HeadEpoch                  uint64
+	HeadBlockRoot              []byte
+	FinalizedSlot              uint64
+	FinalizedEpoch             uint64
+	FinalizedBlockRoot         []byte
+	JustifiedSlot              uint64
+	JustifiedEpoch             uint64
+	JustifiedBlockRoot         []byte
+	PreviousJustifiedSlot      uint64
+	PreviousJustifiedEpoch     uint64
+	PreviousJustifiedBlockRoot []byte
+}
+
+type FinalityCheckpoints struct {
+	PreviousJustified struct {
+		Epoch uint64 `json:"epoch"`
+		Root  string `json:"root"`
+	} `json:"previous_justified"`
+	CurrentJustified struct {
+		Epoch uint64 `json:"epoch"`
+		Root  string `json:"root"`
+	} `json:"current_justified"`
+	Finalized struct {
+		Epoch uint64 `json:"epoch"`
+		Root  string `json:"root"`
+	} `json:"finalized"`
+}
 
 // Validator is a struct to hold validator data
 type Validator struct {
@@ -189,4 +225,69 @@ type VoluntaryExit struct {
 	Epoch          uint64
 	ValidatorIndex uint64
 	Signature      []byte
+}
+
+// MinimalBlock is a struct to hold minimal block data
+type MinimalBlock struct {
+	Epoch      uint64 `db:"epoch"`
+	Slot       uint64 `db:"slot"`
+	BlockRoot  []byte `db:"blockroot"`
+	ParentRoot []byte `db:"parentroot"`
+	Canonical  bool   `db:"-"`
+}
+
+// CanonBlock is a struct to hold canon block data
+type CanonBlock struct {
+	BlockRoot []byte `db:"blockroot"`
+	Slot      uint64 `db:"slot"`
+	Canonical bool   `db:"-"`
+}
+
+// ValidatorQueue is a struct to hold validator queue data
+type ValidatorQueue struct {
+	Activating uint64
+	Exiting    uint64
+}
+
+// EpochData is a struct to hold epoch data
+type EpochData struct {
+	Epoch                   uint64
+	Validators              []*Validator
+	ValidatorAssignmentes   *EpochAssignments
+	Blocks                  map[uint64]map[string]*Block
+	EpochParticipationStats *ValidatorParticipation
+}
+
+// ValidatorParticipation is a struct to hold validator participation data
+type ValidatorParticipation struct {
+	Epoch                   uint64
+	GlobalParticipationRate float32
+	VotedEther              uint64
+	EligibleEther           uint64
+}
+
+type WeiString struct {
+	pgtype.Numeric
+}
+
+// EpochAssignments is a struct to hold epoch assignment data
+type EpochAssignments struct {
+	ProposerAssignments map[uint64]uint64
+	AttestorAssignments map[string]uint64
+	SyncAssignments     []uint64
+}
+
+// EthStoreDay is a struct to hold performance data for a specific beaconchain-day.
+// All fields use Gwei unless specified otherwise by the field name
+type EthStoreDay struct {
+	Pool                   string          `db:"pool"`
+	Day                    uint64          `db:"day"`
+	EffectiveBalancesSum   decimal.Decimal `db:"effective_balances_sum_wei"`
+	StartBalancesSum       decimal.Decimal `db:"start_balances_sum_wei"`
+	EndBalancesSum         decimal.Decimal `db:"end_balances_sum_wei"`
+	DepositsSum            decimal.Decimal `db:"deposits_sum_wei"`
+	TxFeesSumWei           decimal.Decimal `db:"tx_fees_sum_wei"`
+	ConsensusRewardsSumWei decimal.Decimal `db:"consensus_rewards_sum_wei"`
+	TotalRewardsWei        decimal.Decimal `db:"total_rewards_wei"`
+	APR                    decimal.Decimal `db:"apr"`
 }

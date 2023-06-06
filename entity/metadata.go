@@ -65,6 +65,10 @@ type ERC1155MetadataFamily struct {
 }
 
 type Series struct {
+	ID       primitive.ObjectID `json:"_id,omitempty" bson:"_id,omitempty"`
+	ChainID  string
+	Time     primitive.Timestamp
+	Type     string
 	Slow     []byte
 	Standard []byte
 	Fast     []byte

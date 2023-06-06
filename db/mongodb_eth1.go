@@ -2805,3 +2805,55 @@ func (mongodb *Mongo) markBalanceUpdate(address []byte, token []byte, mutations 
 		cache.Set(balanceUpdateCacheKey, []byte{0x1}, int((time.Hour * 48).Seconds()))
 	}
 }
+
+func (mongodb *Mongo) SaveGasNowHistory(slow, standard, rapid, fast *big.Int) error {
+	ctx, done := context.WithTimeout(context.Background(), time.Second*30)
+	defer done()
+
+	ts := time.Now().Truncate(time.Minute)
+	inputData := &entity.Series{}
+	inputData.Time = primitive.Timestamp{T: uint32(ts.Unix()), I: 0}
+	inputData.ChainID = mongodb.ChainId
+	inputData.Type = SERIES_FAMILY
+	inputData.Slow = slow.Bytes()
+	inputData.Standard = standard.Bytes()
+	inputData.Rapid = rapid.Bytes()
+	inputData.Fast = rapid.Bytes()
+
+	doc, err := utils.ToDoc(inputData)
+	if err != nil {
+		return err
+	}
+
+	_, err = mongodb.Db.Collection(METADATA).InsertOne(ctx, doc)
+	if err != nil {
+		return fmt.Errorf("error saving gas now history to bigtable. err: %w", err)
+	}
+	return nil
+}
+
+func (mongodb *Mongo) GetGasNowHistory(ts, pastTs time.Time) ([]types.GasNowHistory, error) {
+	ctx, done := context.WithTimeout(context.Background(), time.Second*30)
+	defer done()
+
+	history := make([]types.GasNowHistory, 0)
+	var results []*entity.Series
+	filter := bson.D{{Key: "chainId", Value: mongodb.ChainId}, {Key: "type", Value: SERIES_FAMILY}, {Key: "time", Value: bson.D{{Key: "$gte", Value: uint64(ts.Unix())}, {Key: "$lte", Value: uint64(pastTs.Unix())}}}}
+	cursor, err := mongodb.Db.Collection(METADATA).Find(ctx, filter)
+	if err = cursor.All(ctx, &results); err != nil {
+		return nil, fmt.Errorf("error getting gas now history, err: %w", err)
+	}
+
+	for _, result := range results {
+
+		history = append(history, types.GasNowHistory{
+			Ts:       time.Unix(int64(result.Time.T), 0),
+			Fast:     new(big.Int).SetBytes(result.Fast),
+			Rapid:    new(big.Int).SetBytes(result.Rapid),
+			Slow:     new(big.Int).SetBytes(result.Slow),
+			Standard: new(big.Int).SetBytes(result.Standard),
+		})
+	}
+
+	return history, nil
+}
