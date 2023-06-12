@@ -7,3 +7,6 @@ var DefaultConfigYml string
 
 //go:embed mainnet.chain.yml
 var MainnetChainYml string
+
+//go:embed prater.chain.yml
+var PraterChainYml string

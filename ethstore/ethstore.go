@@ -32,7 +32,7 @@ import (
 var debugLevel = uint64(0)
 var execTimeout = time.Second * 120
 var execTimeoutMu = sync.Mutex{}
-var consTimeout = time.Second * 120
+var consTimeout = time.Second * 500
 var consTimeoutMu = sync.Mutex{}
 var validatorsCache *lru.Cache
 var validatorsCacheMu = sync.Mutex{}

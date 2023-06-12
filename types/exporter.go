@@ -243,6 +243,13 @@ type CanonBlock struct {
 	Canonical bool   `db:"-"`
 }
 
+// BlockComparisonContainer is a struct to hold block comparison data
+type BlockComparisonContainer struct {
+	Epoch uint64
+	Db    *MinimalBlock
+	Node  *MinimalBlock
+}
+
 // ValidatorQueue is a struct to hold validator queue data
 type ValidatorQueue struct {
 	Activating uint64
@@ -290,4 +297,170 @@ type EthStoreDay struct {
 	ConsensusRewardsSumWei decimal.Decimal `db:"consensus_rewards_sum_wei"`
 	TotalRewardsWei        decimal.Decimal `db:"total_rewards_wei"`
 	APR                    decimal.Decimal `db:"apr"`
+}
+
+type HistoricEthPrice struct {
+	MarketData struct {
+		CurrentPrice struct {
+			Aed float64 `json:"aed"`
+			Ars float64 `json:"ars"`
+			Aud float64 `json:"aud"`
+			Bdt float64 `json:"bdt"`
+			Bhd float64 `json:"bhd"`
+			Bmd float64 `json:"bmd"`
+			Brl float64 `json:"brl"`
+			Btc float64 `json:"btc"`
+			Cad float64 `json:"cad"`
+			Chf float64 `json:"chf"`
+			Clp float64 `json:"clp"`
+			Cny float64 `json:"cny"`
+			Czk float64 `json:"czk"`
+			Dkk float64 `json:"dkk"`
+			Eth float64 `json:"eth"`
+			Eur float64 `json:"eur"`
+			Gbp float64 `json:"gbp"`
+			Hkd float64 `json:"hkd"`
+			Huf float64 `json:"huf"`
+			Idr float64 `json:"idr"`
+			Ils float64 `json:"ils"`
+			Inr float64 `json:"inr"`
+			Jpy float64 `json:"jpy"`
+			Krw float64 `json:"krw"`
+			Kwd float64 `json:"kwd"`
+			Lkr float64 `json:"lkr"`
+			Ltc float64 `json:"ltc"`
+			Mmk float64 `json:"mmk"`
+			Mxn float64 `json:"mxn"`
+			Myr float64 `json:"myr"`
+			Ngn float64 `json:"ngn"`
+			Nok float64 `json:"nok"`
+			Nzd float64 `json:"nzd"`
+			Php float64 `json:"php"`
+			Pkr float64 `json:"pkr"`
+			Pln float64 `json:"pln"`
+			Rub float64 `json:"rub"`
+			Sar float64 `json:"sar"`
+			Sek float64 `json:"sek"`
+			Sgd float64 `json:"sgd"`
+			Thb float64 `json:"thb"`
+			Try float64 `json:"try"`
+			Twd float64 `json:"twd"`
+			Uah float64 `json:"uah"`
+			Usd float64 `json:"usd"`
+			Vef float64 `json:"vef"`
+			Vnd float64 `json:"vnd"`
+			Xag float64 `json:"xag"`
+			Xau float64 `json:"xau"`
+			Xdr float64 `json:"xdr"`
+			Zar float64 `json:"zar"`
+		} `json:"current_price"`
+		MarketCap struct {
+			Aed float64 `json:"aed"`
+			Ars float64 `json:"ars"`
+			Aud float64 `json:"aud"`
+			Bdt float64 `json:"bdt"`
+			Bhd float64 `json:"bhd"`
+			Bmd float64 `json:"bmd"`
+			Brl float64 `json:"brl"`
+			Btc float64 `json:"btc"`
+			Cad float64 `json:"cad"`
+			Chf float64 `json:"chf"`
+			Clp float64 `json:"clp"`
+			Cny float64 `json:"cny"`
+			Czk float64 `json:"czk"`
+			Dkk float64 `json:"dkk"`
+			Eth float64 `json:"eth"`
+			Eur float64 `json:"eur"`
+			Gbp float64 `json:"gbp"`
+			Hkd float64 `json:"hkd"`
+			Huf float64 `json:"huf"`
+			Idr float64 `json:"idr"`
+			Ils float64 `json:"ils"`
+			Inr float64 `json:"inr"`
+			Jpy float64 `json:"jpy"`
+			Krw float64 `json:"krw"`
+			Kwd float64 `json:"kwd"`
+			Lkr float64 `json:"lkr"`
+			Ltc float64 `json:"ltc"`
+			Mmk float64 `json:"mmk"`
+			Mxn float64 `json:"mxn"`
+			Myr float64 `json:"myr"`
+			Ngn float64 `json:"ngn"`
+			Nok float64 `json:"nok"`
+			Nzd float64 `json:"nzd"`
+			Php float64 `json:"php"`
+			Pkr float64 `json:"pkr"`
+			Pln float64 `json:"pln"`
+			Rub float64 `json:"rub"`
+			Sar float64 `json:"sar"`
+			Sek float64 `json:"sek"`
+			Sgd float64 `json:"sgd"`
+			Thb float64 `json:"thb"`
+			Try float64 `json:"try"`
+			Twd float64 `json:"twd"`
+			Uah float64 `json:"uah"`
+			Usd float64 `json:"usd"`
+			Vef float64 `json:"vef"`
+			Vnd float64 `json:"vnd"`
+			Xag float64 `json:"xag"`
+			Xau float64 `json:"xau"`
+			Xdr float64 `json:"xdr"`
+			Zar float64 `json:"zar"`
+		} `json:"market_cap"`
+		TotalVolume struct {
+			Aed float64 `json:"aed"`
+			Ars float64 `json:"ars"`
+			Aud float64 `json:"aud"`
+			Bdt float64 `json:"bdt"`
+			Bhd float64 `json:"bhd"`
+			Bmd float64 `json:"bmd"`
+			Brl float64 `json:"brl"`
+			Btc float64 `json:"btc"`
+			Cad float64 `json:"cad"`
+			Chf float64 `json:"chf"`
+			Clp float64 `json:"clp"`
+			Cny float64 `json:"cny"`
+			Czk float64 `json:"czk"`
+			Dkk float64 `json:"dkk"`
+			Eth float64 `json:"eth"`
+			Eur float64 `json:"eur"`
+			Gbp float64 `json:"gbp"`
+			Hkd float64 `json:"hkd"`
+			Huf float64 `json:"huf"`
+			Idr float64 `json:"idr"`
+			Ils float64 `json:"ils"`
+			Inr float64 `json:"inr"`
+			Jpy float64 `json:"jpy"`
+			Krw float64 `json:"krw"`
+			Kwd float64 `json:"kwd"`
+			Lkr float64 `json:"lkr"`
+			Ltc float64 `json:"ltc"`
+			Mmk float64 `json:"mmk"`
+			Mxn float64 `json:"mxn"`
+			Myr float64 `json:"myr"`
+			Ngn float64 `json:"ngn"`
+			Nok float64 `json:"nok"`
+			Nzd float64 `json:"nzd"`
+			Php float64 `json:"php"`
+			Pkr float64 `json:"pkr"`
+			Pln float64 `json:"pln"`
+			Rub float64 `json:"rub"`
+			Sar float64 `json:"sar"`
+			Sek float64 `json:"sek"`
+			Sgd float64 `json:"sgd"`
+			Thb float64 `json:"thb"`
+			Try float64 `json:"try"`
+			Twd float64 `json:"twd"`
+			Uah float64 `json:"uah"`
+			Usd float64 `json:"usd"`
+			Vef float64 `json:"vef"`
+			Vnd float64 `json:"vnd"`
+			Xag float64 `json:"xag"`
+			Xau float64 `json:"xau"`
+			Xdr float64 `json:"xdr"`
+			Zar float64 `json:"zar"`
+		} `json:"total_volume"`
+	} `json:"market_data"`
+	Name   string `json:"name"`
+	Symbol string `json:"symbol"`
 }

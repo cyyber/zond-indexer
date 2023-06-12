@@ -11,6 +11,7 @@ import (
 	"math/big"
 	"net/http"
 	"os"
+	"os/signal"
 	"path/filepath"
 	"regexp"
 	"runtime"
@@ -63,8 +64,8 @@ func ReadConfig(cfg *types.Config, path string) error {
 		switch cfg.Chain.Name {
 		case "mainnet":
 			err = yaml.Unmarshal([]byte(config.MainnetChainYml), &cfg.Chain.Config)
-		// case "prater":
-		// 	err = yaml.Unmarshal([]byte(config.PraterChainYml), &cfg.Chain.Config)
+		case "prater":
+			err = yaml.Unmarshal([]byte(config.PraterChainYml), &cfg.Chain.Config)
 		// case "ropsten":
 		// 	err = yaml.Unmarshal([]byte(config.RopstenChainYml), &cfg.Chain.Config)
 		// case "sepolia":
@@ -376,8 +377,16 @@ func TimeToEpoch(ts time.Time) int64 {
 	return (ts.Unix() - int64(Config.Chain.GenesisTimestamp)) / int64(Config.Chain.Config.SecondsPerSlot) / int64(Config.Chain.Config.SlotsPerEpoch)
 }
 
+// EpochOfSlot returns the corresponding epoch of a slot
+func EpochOfSlot(slot uint64) uint64 {
+	return slot / Config.Chain.Config.SlotsPerEpoch
+}
+
 // DayOfSlot returns the corresponding day of a slot
 func DayOfSlot(slot uint64) uint64 {
+	if slot == 0 {
+		return 1
+	}
 	return Config.Chain.Config.SecondsPerSlot * slot / (24 * 3600)
 }
 
@@ -387,6 +396,17 @@ func TimeToSlot(timestamp uint64) uint64 {
 		return 0
 	}
 	return (timestamp - Config.Chain.GenesisTimestamp) / Config.Chain.Config.SecondsPerSlot
+}
+
+func SyncPeriodOfEpoch(epoch uint64) uint64 {
+	if epoch < Config.Chain.Config.AltairForkEpoch {
+		return 0
+	}
+	return epoch / Config.Chain.Config.EpochsPerSyncCommitteePeriod
+}
+
+func FirstEpochOfSyncPeriod(syncPeriod uint64) uint64 {
+	return syncPeriod * Config.Chain.Config.EpochsPerSyncCommitteePeriod
 }
 
 func GetSigningDomain() ([]byte, error) {
@@ -407,6 +427,13 @@ func GetSigningDomain() ([]byte, error) {
 	}
 
 	return domain, err
+}
+
+// WaitForCtrlC will block/wait until a control-c is pressed
+func WaitForCtrlC() {
+	c := make(chan os.Signal, 1)
+	signal.Notify(c, os.Interrupt)
+	<-c
 }
 
 func GraffitiToSring(graffiti []byte) string {

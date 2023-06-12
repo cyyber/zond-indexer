@@ -9,6 +9,7 @@ import (
 
 	"github.com/coocood/freecache"
 	"github.com/sirupsen/logrus"
+	"go.mongodb.org/mongo-driver/mongo"
 )
 
 // Tiered cache is a cache implementation combining a
@@ -46,17 +47,17 @@ func MustInitTieredCache(redisAddress string) {
 	}
 }
 
-// func MustInitTieredCacheBigtable(client *gcp_bigtable.Client, chainId string) {
-// 	localCache := freecache.NewCache(100 * 1024 * 1024) // 100 MB
+func MustInitTieredCacheMongodb(client *mongo.Client, chainId string) {
+	localCache := freecache.NewCache(100 * 1024 * 1024) // 100 MB
 
-// 	cache := InitBigtableCache(client, chainId)
+	cache := InitMongodbCache(client, chainId)
 
-// 	TieredCache = &tieredCache{
-// 		remoteCache:  cache,
-// 		localGoCache: localCache,
-// 	}
+	TieredCache = &tieredCache{
+		remoteCache:  cache,
+		localGoCache: localCache,
+	}
 
-// }
+}
 
 func (cache *tieredCache) SetString(key, value string, expiration time.Duration) error {
 	ctx, cancel := context.WithTimeout(context.Background(), time.Second*30)

@@ -14,8 +14,8 @@ import (
 
 func main() {
 	configPath := flag.String("config", "", "Path to the config file, if empty string defaults will be used")
-	bnAddress := flag.String("beacon-node-address", "", "Url of the beacon node api")
-	enAddress := flag.String("execution-node-address", "", "Url of the execution node api")
+	bnAddress := flag.String("beacon-node-address", "https://falling-powerful-knowledge.ethereum-goerli.discover.quiknode.pro/44a07fc5f81690972c4e4ad4e6bc466f6a1c9b98", "Url of the beacon node api")
+	enAddress := flag.String("execution-node-address", "https://goerli.infura.io/v3/d1b7a32b15534fe593f207a0981f930b", "Url of the execution node api")
 	updateInterval := flag.Duration("update-intv", 0, "Update interval")
 	errorInterval := flag.Duration("error-intv", 0, "Error interval")
 	sleepInterval := flag.Duration("sleep-intv", 0, "Sleep interval")

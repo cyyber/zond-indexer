@@ -1,5 +1,18 @@
 package db
 
+import (
+	"github.com/Prajjawalk/zond-indexer/types"
+	"github.com/jmoiron/sqlx"
+)
+
+// FrontendWriterDB is a pointer to the auth-database
+var FrontendReaderDB *sqlx.DB
+var FrontendWriterDB *sqlx.DB
+
+func MustInitFrontendDB(writer *types.DatabaseConfig, reader *types.DatabaseConfig) {
+	FrontendWriterDB, FrontendReaderDB = mustInitDB(writer, reader)
+}
+
 func getMachineStatsGap(resultCount uint64) int {
 	if resultCount > 20160 { // more than 14 (31)
 		return 8

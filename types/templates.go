@@ -332,3 +332,25 @@ type ValidatorsBLSChange struct {
 	Signature                []byte `db:"signature" json:"signature,omitempty"`
 	WithdrawalCredentialsOld []byte `db:"withdrawalcredentials" json:"withdrawalcredentials,omitempty"`
 }
+
+type DataTableSaveStateSearch struct {
+	Search          string `json:"search"`          // Search term
+	Regex           bool   `json:"regex"`           // Indicate if the search term should be treated as regex or not
+	Smart           bool   `json:"smart"`           // Flag to enable DataTables smart search
+	CaseInsensitive bool   `json:"caseInsensitive"` // Case insensitive flag
+}
+
+type DataTableSaveStateColumns struct {
+	Visible bool                     `json:"visible"`
+	Search  DataTableSaveStateSearch `json:"search"`
+}
+
+type DataTableSaveState struct {
+	Key     string                      `json:"key"`
+	Time    uint64                      `json:"time"`   // Time stamp of when the object was created
+	Start   uint64                      `json:"start"`  // Display start point
+	Length  uint64                      `json:"length"` // Page length
+	Order   [][]string                  `json:"order"`  // 2D array of column ordering information (see `order` option)
+	Search  DataTableSaveStateSearch    `json:"search"`
+	Columns []DataTableSaveStateColumns `json:"columns"`
+}
