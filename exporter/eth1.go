@@ -22,7 +22,6 @@ import (
 	"github.com/prysmaticlabs/prysm/v3/crypto/hash"
 	"github.com/prysmaticlabs/prysm/v3/encoding/bytesutil"
 	ethpb "github.com/prysmaticlabs/prysm/v3/proto/prysm/v1alpha1"
-	"github.com/sirupsen/logrus"
 )
 
 var eth1LookBack = uint64(100)
@@ -54,7 +53,7 @@ func eth1DepositsExporter() {
 	lastFetchedBlock := uint64(0)
 
 	for {
-		t0 := time.Now()
+		// t0 := time.Now()
 
 		var lastDepositBlock uint64
 		err = db.WriterDb.Get(&lastDepositBlock, "select coalesce(max(block_number),0) from eth1_deposits")
@@ -135,13 +134,13 @@ func eth1DepositsExporter() {
 		// make sure we are progressing even if there are no deposits in the last batch
 		lastFetchedBlock = toBlock
 
-		logger.WithFields(logrus.Fields{
-			"duration":      time.Since(t0),
-			"blockHeight":   blockHeight,
-			"fromBlock":     fromBlock,
-			"toBlock":       toBlock,
-			"depositsSaved": len(depositsToSave),
-		}).Info("exported eth1-deposits")
+		// logger.WithFields(logrus.Fields{
+		// 	"duration":      time.Since(t0),
+		// 	"blockHeight":   blockHeight,
+		// 	"fromBlock":     fromBlock,
+		// 	"toBlock":       toBlock,
+		// 	"depositsSaved": len(depositsToSave),
+		// }).Info("exported eth1-deposits")
 
 		// progress faster if we are not synced to head yet
 		if blockHeight != toBlock {

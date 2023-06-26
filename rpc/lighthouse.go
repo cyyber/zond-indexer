@@ -18,6 +18,7 @@ import (
 	"github.com/Prajjawalk/zond-indexer/utils"
 
 	"github.com/donovanhide/eventsource"
+	"github.com/ethereum/go-ethereum/common/hexutil"
 	gtypes "github.com/ethereum/go-ethereum/core/types"
 
 	lru "github.com/hashicorp/golang-lru"
@@ -224,8 +225,14 @@ func (lc *LighthouseClient) GetEpochAssignments(epoch uint64) (*types.EpochAssig
 	}
 	depStateRoot := parsedHeader.Data.Header.Message.StateRoot
 
+	assignments := &types.EpochAssignments{
+		ProposerAssignments: make(map[uint64]uint64),
+		AttestorAssignments: make(map[string]uint64),
+	}
+
 	// Now use the state root to make a consistent committee query
 	committeesResp, err := lc.get(fmt.Sprintf("%s/eth/v1/beacon/states/%s/committees?epoch=%d", lc.endpoint, depStateRoot, epoch))
+
 	if err != nil {
 		return nil, fmt.Errorf("error retrieving committees data: %w", err)
 	}
@@ -233,11 +240,6 @@ func (lc *LighthouseClient) GetEpochAssignments(epoch uint64) (*types.EpochAssig
 	err = json.Unmarshal(committeesResp, &parsedCommittees)
 	if err != nil {
 		return nil, fmt.Errorf("error parsing committees data: %w", err)
-	}
-
-	assignments := &types.EpochAssignments{
-		ProposerAssignments: make(map[uint64]uint64),
-		AttestorAssignments: make(map[string]uint64),
 	}
 
 	// propose
@@ -492,7 +494,7 @@ func (lc *LighthouseClient) GetBlockByBlockroot(blockroot []byte) (*types.Block,
 
 	slot := uint64(parsedHeaders.Data.Header.Message.Slot)
 
-	resp, err := lc.get(fmt.Sprintf("%s/eth/v1/beacon/blocks/%s", lc.endpoint, parsedHeaders.Data.Root))
+	resp, err := lc.get(fmt.Sprintf("%s/eth/v2/beacon/blocks/%s", lc.endpoint, parsedHeaders.Data.Root))
 	if err != nil {
 		return nil, fmt.Errorf("error retrieving block data at slot %v: %v", slot, err)
 	}
@@ -512,6 +514,7 @@ func (lc *LighthouseClient) GetBlocksBySlot(slot uint64) ([]*types.Block, error)
 	var parsedHeaders *StandardBeaconHeaderResponse
 
 	resHeaders, err := lc.get(fmt.Sprintf("%s/eth/v1/beacon/headers/%d", lc.endpoint, slot))
+
 	if err != nil && slot == 0 {
 		headResp, err := lc.get(fmt.Sprintf("%s/eth/v1/beacon/headers", lc.endpoint))
 		if err != nil {
@@ -547,7 +550,8 @@ func (lc *LighthouseClient) GetBlocksBySlot(slot uint64) ([]*types.Block, error)
 		}
 	}
 
-	resp, err := lc.get(fmt.Sprintf("%s/eth/v1/beacon/blocks/%s", lc.endpoint, parsedHeaders.Data.Root))
+	resp, err := lc.get(fmt.Sprintf("%s/eth/v2/beacon/blocks/%s", lc.endpoint, parsedHeaders.Data.Root))
+
 	if err != nil && slot == 0 {
 		return nil, fmt.Errorf("error retrieving block data at slot %v: %v", slot, err)
 	}
@@ -853,35 +857,88 @@ func (lc *LighthouseClient) GetValidatorParticipation(epoch uint64) (*types.Vali
 		request_epoch += 1
 	}
 
-	resp, err := lc.get(fmt.Sprintf("%s/lighthouse/validator_inclusion/%d/global", lc.endpoint, request_epoch))
-	if err != nil {
-		return nil, fmt.Errorf("error retrieving validator participation data for epoch %v: %v", epoch, err)
+	startingSlot := request_epoch * utils.Config.Chain.Config.SlotsPerEpoch
+	endingSlot := startingSlot + utils.Config.Chain.Config.SlotsPerEpoch
+	totalVotes := uint64(0)
+	totalEffectiveBalance := uint64(0)
+	totalVotedBalance := uint64(0)
+
+	for slotNumber := startingSlot; slotNumber <= endingSlot; slotNumber++ {
+		resp, err := lc.get(fmt.Sprintf("%s/eth/v1/beacon/blocks/%d/attestations", lc.endpoint, slotNumber))
+		if err != nil {
+			logger.Errorf("error retrieving attestations data for slot %v: %v", slotNumber, err)
+			continue
+		}
+
+		var parsedResp BlockAttestationResponse
+		err = json.Unmarshal(resp, &parsedResp)
+		if err != nil {
+			logger.Errorf("error parsing attestations data for slot %v: %v", slotNumber, err)
+			continue
+		}
+
+		validatorResp, err := lc.get(fmt.Sprintf("%s/eth/v1/beacon/states/%d/validators", lc.endpoint, slotNumber))
+		if err != nil {
+			logger.Errorf("error retrieving validators data for slot %v: %v", slotNumber, err)
+			continue
+		}
+
+		var parsedValidatorsResp StateValidatorsResponse
+		err = json.Unmarshal(validatorResp, &parsedValidatorsResp)
+		if err != nil {
+			logger.Errorf("error parsing validators data for slot %v: %v", slotNumber, err)
+			continue
+		}
+
+		votedBalance, _ := strconv.ParseUint(parsedValidatorsResp.Data[0].Validator.EffectiveBalance, 10, 32)
+		totalVotedBalance += totalVotes * (votedBalance)
+
+		for _, attestation := range parsedResp.Data {
+			if attestation.AggregationBits == "" {
+				continue
+			}
+			// Decode the attestation data
+			decodedData, err := hexutil.Decode(attestation.AggregationBits)
+			if err != nil {
+				logger.Errorf("Error decoding attestation data: %v\n", err)
+				continue
+			}
+
+			// Count the votes
+			voteCount := countVotes(decodedData)
+			totalVotes += voteCount
+		}
+
+		for _, validators := range parsedValidatorsResp.Data {
+			if validators.Validator.EffectiveBalance == "" {
+				continue
+			}
+			effectiveBalance, err := strconv.ParseUint(validators.Validator.EffectiveBalance, 10, 32)
+			if err != nil {
+				logger.Errorf("Error parsing effective balance of validator %v", validators.Index)
+			}
+
+			totalEffectiveBalance += effectiveBalance
+		}
 	}
 
-	var parsedResponse LighthouseValidatorParticipationResponse
-	err = json.Unmarshal(resp, &parsedResponse)
-	if err != nil {
-		return nil, fmt.Errorf("error parsing validator participation data for epoch %v: %v", epoch, err)
+	res := &types.ValidatorParticipation{
+		Epoch:                   epoch,
+		GlobalParticipationRate: float32(totalVotedBalance) / float32(totalEffectiveBalance),
+		VotedEther:              totalVotedBalance,
+		EligibleEther:           totalEffectiveBalance,
 	}
 
-	var res *types.ValidatorParticipation
-	if epoch < request_epoch {
-		// we requested the next epoch, so we have to use the previous value for everything here
-		res = &types.ValidatorParticipation{
-			Epoch:                   epoch,
-			GlobalParticipationRate: float32(parsedResponse.Data.PreviousEpochTargetAttestingGwei) / float32(parsedResponse.Data.PreviousEpochActiveGwei),
-			VotedEther:              uint64(parsedResponse.Data.PreviousEpochTargetAttestingGwei),
-			EligibleEther:           uint64(parsedResponse.Data.PreviousEpochActiveGwei),
-		}
-	} else {
-		res = &types.ValidatorParticipation{
-			Epoch:                   epoch,
-			GlobalParticipationRate: float32(parsedResponse.Data.CurrentEpochTargetAttestingGwei) / float32(parsedResponse.Data.CurrentEpochActiveGwei),
-			VotedEther:              uint64(parsedResponse.Data.CurrentEpochTargetAttestingGwei),
-			EligibleEther:           uint64(parsedResponse.Data.CurrentEpochActiveGwei),
-		}
-	}
 	return res, nil
+}
+
+// countVotes counts the number of votes in the given attestation data
+func countVotes(data []byte) uint64 {
+	voteCount := uint64(0)
+	for _, vote := range data {
+		voteCount += uint64(vote)
+	}
+	return voteCount
 }
 
 func (lc *LighthouseClient) GetFinalityCheckpoints(epoch uint64) (*types.FinalityCheckpoints, error) {
@@ -910,7 +967,7 @@ var errNotFound = errors.New("not found 404")
 func (lc *LighthouseClient) get(url string) ([]byte, error) {
 	// t0 := time.Now()
 	// defer func() { fmt.Println(url, time.Since(t0)) }()
-	client := &http.Client{Timeout: time.Second * 120}
+	client := &http.Client{Timeout: time.Second * 500}
 	resp, err := client.Get(url)
 	if err != nil {
 		return nil, err
@@ -1068,6 +1125,48 @@ type LighthouseValidatorParticipationResponse struct {
 		PreviousEpochTargetAttestingGwei uint64Str `json:"previous_epoch_target_attesting_gwei"`
 		PreviousEpochHeadAttestingGwei   uint64Str `json:"previous_epoch_head_attesting_gwei"`
 	} `json:"data"`
+}
+
+type BlockAttestationResponse struct {
+	ExecutionOptimistic bool
+	Finalized           bool
+	Data                []struct {
+		AggregationBits string
+		Signature       string
+		Data            struct {
+			Slot            string
+			Index           string
+			BeaconBlockRoot string
+			source          struct {
+				Epoch string
+				Root  string
+			}
+			Target struct {
+				Epoch string
+				Root  string
+			}
+		}
+	}
+}
+
+type StateValidatorsResponse struct {
+	ExecutionOptimistic bool
+	Finalized           bool
+	Data                []struct {
+		Index     string
+		Balance   string
+		Status    string
+		Validator struct {
+			Pubkey                     string
+			WithdrawalCredentials      string
+			EffectiveBalance           string
+			Slashed                    bool
+			ActivationEligibilityEpoch string
+			ActivationEpoch            string
+			ExitEpoch                  string
+			WithdrawableEpoch          string
+		}
+	}
 }
 
 type ProposerSlashing struct {

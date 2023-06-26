@@ -254,16 +254,16 @@ func (mongodb *Mongo) GetMachineMetricsForNotifications(eventList []entity.Machi
 }
 
 func (mongodb *Mongo) SaveValidatorBalances(epoch uint64, validators []*types.Validator) error {
-	ctx, cancel := context.WithTimeout(context.Background(), time.Second*30)
-	defer cancel()
-
 	start := time.Now()
 
+	var validatorBalances []interface{}
 	for _, validator := range validators {
-		_, err := mongodb.Db.Collection(BEACON_CHAIN).InsertOne(ctx, bson.D{{Key: "validatorId", Value: validator.Index}, {Key: "balance", Value: validator.Balance}, {Key: "effectiveBalance", Value: validator.EffectiveBalance}, {Key: "type", Value: VALIDATOR_BALANCES_FAMILY}, {Key: "epoch", Value: epoch}})
-		if err != nil {
-			return err
-		}
+		validatorBalances = append(validatorBalances, bson.D{{Key: "validatorId", Value: validator.Index}, {Key: "balance", Value: validator.Balance}, {Key: "effectiveBalance", Value: validator.EffectiveBalance}, {Key: "type", Value: VALIDATOR_BALANCES_FAMILY}, {Key: "epoch", Value: epoch}})
+	}
+
+	_, err := mongodb.Db.Collection(BEACON_CHAIN).InsertMany(context.Background(), validatorBalances)
+	if err != nil {
+		return err
 	}
 
 	logger.Infof("exported validator balances in %v", time.Since(start))
@@ -271,7 +271,7 @@ func (mongodb *Mongo) SaveValidatorBalances(epoch uint64, validators []*types.Va
 }
 
 func (mongodb *Mongo) SaveAttestationAssignments(epoch uint64, assignments map[string]uint64) error {
-	ctx, cancel := context.WithTimeout(context.Background(), time.Second*30)
+	ctx, cancel := context.WithTimeout(context.Background(), time.Second*120)
 	defer cancel()
 
 	start := time.Now()
@@ -291,13 +291,17 @@ func (mongodb *Mongo) SaveAttestationAssignments(epoch uint64, assignments map[s
 		validatorsPerSlot[attesterslot] = append(validatorsPerSlot[attesterslot], validator)
 	}
 
+	var attestationAssignmentInput []interface{}
+
 	for slot, validators := range validatorsPerSlot {
 		for _, validator := range validators {
-			_, err := mongodb.Db.Collection(BEACON_CHAIN).InsertOne(ctx, bson.D{{Key: "chainID", Value: mongodb.ChainId}, {Key: "epoch", Value: epoch}, {Key: "validatorId", Value: validator}, {Key: "attestorSlot", Value: slot}, {Key: "type", Value: ATTESTATIONS_FAMILY}})
-			if err != nil {
-				return err
-			}
+			attestationAssignmentInput = append(attestationAssignmentInput, bson.D{{Key: "chainID", Value: mongodb.ChainId}, {Key: "epoch", Value: epoch}, {Key: "validatorId", Value: validator}, {Key: "attestorSlot", Value: slot}, {Key: "type", Value: ATTESTATIONS_FAMILY}})
 		}
+	}
+
+	_, err := mongodb.Db.Collection(BEACON_CHAIN).InsertMany(ctx, attestationAssignmentInput)
+	if err != nil {
+		return err
 	}
 
 	logger.Infof("exported attestation assignments in %v", time.Since(start))
@@ -305,7 +309,7 @@ func (mongodb *Mongo) SaveAttestationAssignments(epoch uint64, assignments map[s
 }
 
 func (mongodb *Mongo) SaveProposalAssignments(epoch uint64, assignments map[uint64]uint64) error {
-	ctx, cancel := context.WithTimeout(context.Background(), time.Second*30)
+	ctx, cancel := context.WithTimeout(context.Background(), time.Second*120)
 	defer cancel()
 
 	start := time.Now()
@@ -317,7 +321,7 @@ func (mongodb *Mongo) SaveProposalAssignments(epoch uint64, assignments map[uint
 		}
 	}
 
-	logger.Infof("exported proposal assignments to bigtable in %v", time.Since(start))
+	logger.Infof("exported proposal assignments to mongodb in %v", time.Since(start))
 	return nil
 }
 
@@ -327,13 +331,16 @@ func (mongodb *Mongo) SaveSyncCommitteesAssignments(startSlot, endSlot uint64, v
 
 	start := time.Now()
 
+	var syncCommitteeAssignmentInput []interface{}
 	for i := startSlot; i <= endSlot; i++ {
 		for _, validator := range validators {
-			_, err := mongodb.Db.Collection(BEACON_CHAIN).InsertOne(ctx, bson.D{{Key: "chainId", Value: mongodb.ChainId}, {Key: "validatorId", Value: validator}, {Key: "type", Value: SYNC_COMMITTEES_FAMILY}, {Key: "epoch", Value: i / utils.Config.Chain.Config.SlotsPerEpoch}, {Key: "slot", Value: i}})
-			if err != nil {
-				return err
-			}
+			syncCommitteeAssignmentInput = append(syncCommitteeAssignmentInput, bson.D{{Key: "chainId", Value: mongodb.ChainId}, {Key: "validatorId", Value: validator}, {Key: "type", Value: SYNC_COMMITTEES_FAMILY}, {Key: "epoch", Value: i / utils.Config.Chain.Config.SlotsPerEpoch}, {Key: "slot", Value: i}})
 		}
+	}
+
+	_, err := mongodb.Db.Collection(BEACON_CHAIN).InsertOne(ctx, syncCommitteeAssignmentInput)
+	if err != nil {
+		return err
 	}
 
 	logger.Infof("exported sync committee assignments in %v", time.Since(start))
@@ -375,13 +382,17 @@ func (mongodb *Mongo) SaveAttestations(blocks map[uint64]map[string]*types.Block
 		}
 	}
 
+	var attestationInput []interface{}
+
 	for attestedSlot, inclusions := range attestationsBySlot {
 		for validator := range inclusions {
-			_, err := mongodb.Db.Collection(BEACON_CHAIN).InsertOne(ctx, bson.D{{Key: "chainId", Value: mongodb.ChainId}, {Key: "validatorId", Value: validator}, {Key: "epoch", Value: attestedSlot / utils.Config.Chain.Config.SlotsPerEpoch}, {Key: "attestorSlot", Value: attestedSlot}, {Key: "type", Value: ATTESTATIONS_FAMILY}})
-			if err != nil {
-				return err
-			}
+			attestationInput = append(attestationInput, bson.D{{Key: "chainId", Value: mongodb.ChainId}, {Key: "validatorId", Value: validator}, {Key: "epoch", Value: attestedSlot / utils.Config.Chain.Config.SlotsPerEpoch}, {Key: "attestorSlot", Value: attestedSlot}, {Key: "type", Value: ATTESTATIONS_FAMILY}})
 		}
+	}
+
+	_, err := mongodb.Db.Collection(BEACON_CHAIN).InsertMany(ctx, attestationInput)
+	if err != nil {
+		return err
 	}
 
 	logger.Infof("exported attestations in %v", time.Since(start))
@@ -460,13 +471,17 @@ func (mongodb *Mongo) SaveSyncComitteeDuties(blocks map[uint64]map[string]*types
 		return nil
 	}
 
+	var syncCommitteeInputs []interface{}
+
 	for slot, validators := range dutiesBySlot {
 		for validator := range validators {
-			_, err := mongodb.Db.Collection(BEACON_CHAIN).InsertOne(ctx, bson.D{{Key: "chainId", Value: mongodb.ChainId}, {Key: "validatorId", Value: validator}, {Key: "type", Value: SYNC_COMMITTEES_FAMILY}, {Key: "epoch", Value: slot / utils.Config.Chain.Config.SlotsPerEpoch}, {Key: "slot", Value: slot}})
-			if err != nil {
-				return err
-			}
+			syncCommitteeInputs = append(syncCommitteeInputs, bson.D{{Key: "chainId", Value: mongodb.ChainId}, {Key: "validatorId", Value: validator}, {Key: "type", Value: SYNC_COMMITTEES_FAMILY}, {Key: "epoch", Value: slot / utils.Config.Chain.Config.SlotsPerEpoch}, {Key: "slot", Value: slot}})
 		}
+	}
+
+	_, err := mongodb.Db.Collection(BEACON_CHAIN).InsertMany(ctx, syncCommitteeInputs)
+	if err != nil {
+		return err
 	}
 
 	logger.Infof("exported sync committee duties in %v", time.Since(start))

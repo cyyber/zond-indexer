@@ -90,7 +90,7 @@ func exportSyncCommitteeAtPeriod(rpcClient rpc.Client, p uint64) error {
 	start := time.Now()
 	firstSlot := firstEpoch * utils.Config.Chain.Config.SlotsPerEpoch
 	lastSlot := lastEpoch*utils.Config.Chain.Config.SlotsPerEpoch + utils.Config.Chain.Config.SlotsPerEpoch - 1
-	logger.Infof("exporting sync committee assignments for period %v (epoch %v to %v, slot %v to %v) to bigtable", p, firstEpoch, lastEpoch, firstSlot, lastSlot)
+	logger.Infof("exporting sync committee assignments for period %v (epoch %v to %v, slot %v to %v) to mongodb", p, firstEpoch, lastEpoch, firstSlot, lastSlot)
 
 	err = db.MongodbClient.SaveSyncCommitteesAssignments(firstSlot, lastSlot, validatorsU64)
 	if err != nil {
