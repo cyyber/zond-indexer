@@ -4,6 +4,7 @@ import (
 	"bytes"
 	"context"
 	"encoding/hex"
+	"errors"
 	"fmt"
 	"log"
 	"math/big"
@@ -37,6 +38,8 @@ import (
 )
 
 type IndexFilter string
+
+var ErrBlockNotFound = errors.New("block not found")
 
 const (
 	FILTER_TIME           IndexFilter = "TIME"
@@ -130,21 +133,17 @@ func (mongodb *Mongo) SaveBlock(block *types.Eth1Block) error {
 }
 
 func (mongodb *Mongo) GetBlockFromBlocksTable(number uint64) (*types.Eth1Block, error) {
-	ctx, cancel := context.WithTimeout(context.Background(), time.Second*10)
+	ctx, cancel := context.WithTimeout(context.Background(), time.Second*120)
 	defer cancel()
 
-	filter := bson.D{{Key: "chainId", Value: mongodb.ChainId}, {Key: "number", Value: number}}
-	cursor, err := mongodb.Db.Collection(BLOCKS).Find(ctx, filter)
+	var results *entity.BlockData
+	filter := bson.D{{Key: "chainid", Value: mongodb.ChainId}, {Key: "eth1block.number", Value: number}}
+	err := mongodb.Db.Collection(BLOCKS).FindOne(ctx, filter).Decode(&results)
 	if err != nil {
 		return nil, err
 	}
 
-	var results []*entity.BlockData
-	if err = cursor.All(ctx, &results); err != nil {
-		return nil, err
-	}
-
-	return &results[0].Eth1Block, nil
+	return &results.Eth1Block, nil
 }
 
 func (mongodb *Mongo) CheckForGapsInBlocksTable(lookback int) (gapFound bool, start int, end int, err error) {
@@ -407,11 +406,8 @@ func (mongodb *Mongo) GetBlocksDescending(start, limit uint64) ([]*types.Eth1Blo
 	return blocks, nil
 }
 
-func (mongodb *Mongo) TransformBlock(block *types.Eth1Block, cache *freecache.Cache) (interface{}, interface{}, error) {
-	var bulkData struct {
-		Model []mongo.WriteModel
-		Keys  []string
-	}
+func (mongodb *Mongo) TransformBlock(block *types.Eth1Block, cache *freecache.Cache) (*types.BulkMutations, []mongo.WriteModel, error) {
+	bulkData := &types.BulkMutations{}
 	var bulkMetadataUpdates []mongo.WriteModel
 
 	idx := entity.BlockIndex{
@@ -520,7 +516,7 @@ func (mongodb *Mongo) TransformBlock(block *types.Eth1Block, cache *freecache.Ca
 
 	doc, err := utils.ToDoc(idx)
 	if err != nil {
-		return nil, nil, err
+		return bulkData, nil, err
 	}
 	insertBlock := mongo.NewInsertOneModel().SetDocument(doc)
 	bulkData.Model = append(bulkData.Model, insertBlock)
@@ -540,7 +536,7 @@ func (mongodb *Mongo) TransformBlock(block *types.Eth1Block, cache *freecache.Ca
 		}
 		doc, err := utils.ToDoc(mut)
 		if err != nil {
-			return nil, nil, err
+			return bulkData, nil, err
 		}
 		insertBlock := mongo.NewInsertOneModel().SetDocument(doc)
 		bulkData.Model = append(bulkData.Model, insertBlock)
@@ -589,11 +585,8 @@ func CalculateTxFeeFromTransaction(tx *types.Eth1Transaction, blockBaseFee *big.
 	return txFee
 }
 
-func (mongodb *Mongo) TransformTx(blk *types.Eth1Block, cache *freecache.Cache) (interface{}, interface{}, error) {
-	var bulkData struct {
-		Model []mongo.WriteModel
-		Keys  []string
-	}
+func (mongodb *Mongo) TransformTx(blk *types.Eth1Block, cache *freecache.Cache) (*types.BulkMutations, []mongo.WriteModel, error) {
+	bulkData := &types.BulkMutations{}
 	var bulkMetadataUpdates []mongo.WriteModel
 
 	for i, tx := range blk.Transactions {
@@ -693,11 +686,8 @@ func (mongodb *Mongo) TransformTx(blk *types.Eth1Block, cache *freecache.Cache) 
 	return bulkData, bulkMetadataUpdates, nil
 }
 
-func (mongodb *Mongo) TransformItx(blk *types.Eth1Block, cache *freecache.Cache) (interface{}, interface{}, error) {
-	var bulkData struct {
-		Model []mongo.WriteModel
-		Keys  []string
-	}
+func (mongodb *Mongo) TransformItx(blk *types.Eth1Block, cache *freecache.Cache) (*types.BulkMutations, []mongo.WriteModel, error) {
+	bulkData := &types.BulkMutations{}
 	var bulkMetadataUpdates []mongo.WriteModel
 
 	for i, tx := range blk.GetTransactions() {
@@ -762,11 +752,8 @@ func (mongodb *Mongo) TransformItx(blk *types.Eth1Block, cache *freecache.Cache)
 	return bulkData, bulkMetadataUpdates, nil
 }
 
-func (mongodb *Mongo) TransformERC20(blk *types.Eth1Block, cache *freecache.Cache) (interface{}, interface{}, error) {
-	var bulkData struct {
-		Model []mongo.WriteModel
-		Keys  []string
-	}
+func (mongodb *Mongo) TransformERC20(blk *types.Eth1Block, cache *freecache.Cache) (*types.BulkMutations, []mongo.WriteModel, error) {
+	bulkData := &types.BulkMutations{}
 	var bulkMetadataUpdates []mongo.WriteModel
 
 	filterer, err := erc20.NewErc20Filterer(common.Address{}, nil)
@@ -870,11 +857,8 @@ func (mongodb *Mongo) TransformERC20(blk *types.Eth1Block, cache *freecache.Cach
 	return bulkData, bulkMetadataUpdates, nil
 }
 
-func (mongodb *Mongo) TransformERC721(blk *types.Eth1Block, cache *freecache.Cache) (interface{}, interface{}, error) {
-	var bulkData struct {
-		Model []mongo.WriteModel
-		Keys  []string
-	}
+func (mongodb *Mongo) TransformERC721(blk *types.Eth1Block, cache *freecache.Cache) (*types.BulkMutations, []mongo.WriteModel, error) {
+	bulkData := &types.BulkMutations{}
 	var bulkMetadataUpdates []mongo.WriteModel
 
 	filterer, err := erc721.NewErc721Filterer(common.Address{}, nil)
@@ -976,11 +960,8 @@ func (mongodb *Mongo) TransformERC721(blk *types.Eth1Block, cache *freecache.Cac
 	return bulkData, bulkMetadataUpdates, nil
 }
 
-func (mongodb *Mongo) TransformERC1155(blk *types.Eth1Block, cache *freecache.Cache) (interface{}, interface{}, error) {
-	var bulkData struct {
-		Model []mongo.WriteModel
-		Keys  []string
-	}
+func (mongodb *Mongo) TransformERC1155(blk *types.Eth1Block, cache *freecache.Cache) (*types.BulkMutations, []mongo.WriteModel, error) {
+	bulkData := &types.BulkMutations{}
 	var bulkMetadataUpdates []mongo.WriteModel
 
 	filterer, err := erc1155.NewErc1155Filterer(common.Address{}, nil)
@@ -1173,11 +1154,8 @@ func (mongodb *Mongo) TransformERC1155(blk *types.Eth1Block, cache *freecache.Ca
 // 	return bulkData, bulkMetadataUpdates, nil
 // }
 
-func (mongodb *Mongo) TransformWithdrawals(block *types.Eth1Block, cache *freecache.Cache) (interface{}, interface{}, error) {
-	var bulkData struct {
-		Model []mongo.WriteModel
-		Keys  []string
-	}
+func (mongodb *Mongo) TransformWithdrawals(block *types.Eth1Block, cache *freecache.Cache) (*types.BulkMutations, []mongo.WriteModel, error) {
+	bulkData := &types.BulkMutations{}
 	var bulkMetadataUpdates []mongo.WriteModel
 
 	if len(block.Withdrawals) > int(utils.Config.Chain.Config.MaxWithdrawalsPerPayload) {
@@ -1237,9 +1215,9 @@ func (mongodb *Mongo) GetEth1TxForAddress(prefix string, limit int64) ([]*types.
 	indexes := make([]string, 0, limit)
 
 	indexFilter := bson.D{{Key: "type", Value: "index"}, {Key: "key", Value: bson.D{{Key: "$regex", Value: prefix}}}}
-	idxcursor, err := mongodb.Db.Collection(DATA).Find(ctx, indexFilter, options.Find().SetLimit(limit))
+	idxcursor, _ := mongodb.Db.Collection(DATA).Find(ctx, indexFilter, options.Find().SetLimit(limit))
 	var indexResults []*entity.Indexes
-	if err = idxcursor.All(ctx, &indexResults); err != nil {
+	if err := idxcursor.All(ctx, &indexResults); err != nil {
 		logger.Errorf("error while parsing transaction data: %v", err)
 	}
 
@@ -1259,8 +1237,8 @@ func (mongodb *Mongo) GetEth1TxForAddress(prefix string, limit int64) ([]*types.
 
 	var results []*entity.TransactionIndex
 	filter := bson.D{{Key: "chainId", Value: chainId}, {Key: "type", Value: "transactionindex"}, {Key: "hash", Value: bson.D{{Key: "$in", Value: txHashes}}}}
-	cursor, err := mongodb.Db.Collection(DATA).Find(ctx, filter, options.Find().SetLimit(limit))
-	if err = cursor.All(ctx, &results); err != nil {
+	cursor, _ := mongodb.Db.Collection(DATA).Find(ctx, filter, options.Find().SetLimit(limit))
+	if err := cursor.All(ctx, &results); err != nil {
 		logger.Errorf("error while parsing transaction data: %v", err)
 	}
 
@@ -2063,7 +2041,7 @@ func (mongodb *Mongo) GetMetadataUpdates(prefix string, startToken string, limit
 	chainId := prefixSplit[0]
 
 	var results []*entity.BalanceUpdates
-	filter := bson.D{{Key: "chainId", Value: chainId}, {Key: "type", Value: "metadata_balances_updates"}}
+	filter := bson.D{{Key: "chainid", Value: chainId}, {Key: "type", Value: "metadata_balances_updates"}}
 	cursor, err := mongodb.Db.Collection(METADATA_UPDATES).Find(ctx, filter, options.Find().SetLimit(int64(limit)))
 	if err = cursor.All(ctx, &results); err != nil {
 		return nil, nil, err
@@ -2517,7 +2495,7 @@ func (mongodb *Mongo) SaveBalances(balances []*types.Eth1AddressBalance, deleteK
 	}
 
 	for _, key := range deleteKeys {
-		filter := bson.D{{Key: "chainId", Value: mongodb.ChainId}, {Key: "key", Value: key}, {Key: "type", Value: "metadata_balances_updates"}}
+		filter := bson.D{{Key: "chainid", Value: mongodb.ChainId}, {Key: "key", Value: key}, {Key: "type", Value: "metadata_balances_updates"}}
 		bulkMetadataUpdates = append(bulkMetadataUpdates, mongo.NewDeleteOneModel().SetFilter(filter))
 	}
 
@@ -2563,7 +2541,7 @@ func (mongodb *Mongo) SaveERC20TokenPrices(prices []*types.ERC20TokenPrice) erro
 }
 
 func (mongodb *Mongo) SaveBlockKeys(blockNumber uint64, blockHash []byte, keys string) error {
-	ctx, cancel := context.WithDeadline(context.Background(), time.Now().Add(time.Second*30))
+	ctx, cancel := context.WithDeadline(context.Background(), time.Now().Add(time.Second*120))
 	defer cancel()
 
 	inputKeys := &entity.BlockMetadataUpdates{}
@@ -2578,8 +2556,8 @@ func (mongodb *Mongo) SaveBlockKeys(blockNumber uint64, blockHash []byte, keys s
 		return err
 	}
 
-	filter := bson.D{{Key: "chainId", Value: mongodb.ChainId}, {Key: "blocknumber", Value: blockNumber}}
-	_, err = mongodb.Db.Collection(METADATA_UPDATES).UpdateOne(ctx, filter, doc, options.Update().SetUpsert(true))
+	filter := bson.D{{Key: "chainid", Value: mongodb.ChainId}, {Key: "blocknumber", Value: blockNumber}}
+	_, err = mongodb.Db.Collection(METADATA_UPDATES).UpdateOne(ctx, filter, bson.M{"$set": doc}, options.Update().SetUpsert(true))
 
 	return err
 }
@@ -2589,7 +2567,7 @@ func (mongodb *Mongo) GetBlockKeys(blockNumber uint64, blockHash []byte) ([]stri
 	defer cancel()
 
 	var result *entity.BlockMetadataUpdates
-	filter := bson.D{{Key: "chainId", Value: mongodb.ChainId}, {Key: "blocknumber", Value: blockNumber}, {Key: "blockhash", Value: hex.EncodeToString(blockHash)}}
+	filter := bson.D{{Key: "chainid", Value: mongodb.ChainId}, {Key: "blocknumber", Value: blockNumber}, {Key: "blockhash", Value: hex.EncodeToString(blockHash)}}
 	err := mongodb.Db.Collection(METADATA_UPDATES).FindOne(ctx, filter).Decode(result)
 
 	if err != nil {
