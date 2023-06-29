@@ -76,7 +76,7 @@ func (client *ErigonClient) GetRPCClient() *geth_rpc.Client {
 }
 
 func (client *ErigonClient) GetBlock(number int64) (*types.Eth1Block, *types.GetBlockTimings, error) {
-	ctx, cancel := context.WithTimeout(context.Background(), time.Second*10)
+	ctx, cancel := context.WithTimeout(context.Background(), time.Second*120)
 	defer cancel()
 
 	start := time.Now()

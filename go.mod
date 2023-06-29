@@ -4,6 +4,7 @@ go 1.18
 
 require (
 	cloud.google.com/go/secretmanager v1.10.1
+	github.com/davecgh/go-spew v1.1.1
 	github.com/donovanhide/eventsource v0.0.0-20210830082556-c59027999da0
 	github.com/gorilla/mux v1.8.0
 	github.com/gorilla/websocket v1.5.0

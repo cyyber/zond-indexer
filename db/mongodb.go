@@ -61,6 +61,7 @@ func InitMongodb(connectionString, instance, chainId string) (*Mongo, error) {
 		Db:      db,
 		ChainId: chainId,
 	}
+	MongodbClient = mongodb
 	return mongodb, nil
 }
 
