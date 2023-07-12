@@ -2,6 +2,7 @@ package utils
 
 import (
 	"bytes"
+	"database/sql"
 	"encoding/hex"
 	"encoding/json"
 	"errors"
@@ -24,6 +25,7 @@ import (
 	"github.com/Prajjawalk/zond-indexer/types"
 	"github.com/ethereum/go-ethereum/accounts/abi"
 	"github.com/kelseyhightower/envconfig"
+	"github.com/lib/pq"
 	"github.com/mvdan/xurls"
 	"github.com/prysmaticlabs/prysm/v3/beacon-chain/core/signing"
 	prysm_params "github.com/prysmaticlabs/prysm/v3/config/params"
@@ -249,6 +251,124 @@ func ExchangeRateForCurrency(currency string) float64 {
 	return price.GetEthPrice(currency)
 }
 
+func SqlRowsToJSON(rows *sql.Rows) ([]interface{}, error) {
+	columnTypes, err := rows.ColumnTypes()
+
+	if err != nil {
+		return nil, fmt.Errorf("error getting column types: %w", err)
+	}
+
+	count := len(columnTypes)
+	finalRows := []interface{}{}
+
+	for rows.Next() {
+
+		scanArgs := make([]interface{}, count)
+
+		for i, v := range columnTypes {
+			switch v.DatabaseTypeName() {
+			case "VARCHAR", "TEXT", "UUID":
+				scanArgs[i] = new(sql.NullString)
+			case "BOOL":
+				scanArgs[i] = new(sql.NullBool)
+			case "INT4", "INT8":
+				scanArgs[i] = new(sql.NullInt64)
+			case "FLOAT8":
+				scanArgs[i] = new(sql.NullFloat64)
+			case "TIMESTAMP":
+				scanArgs[i] = new(sql.NullTime)
+			case "_INT4", "_INT8":
+				scanArgs[i] = new(pq.Int64Array)
+			default:
+				scanArgs[i] = new(sql.NullString)
+			}
+		}
+
+		err := rows.Scan(scanArgs...)
+
+		if err != nil {
+			return nil, fmt.Errorf("error scanning rows: %w", err)
+		}
+
+		masterData := map[string]interface{}{}
+
+		for i, v := range columnTypes {
+
+			//log.Println(v.Name(), v.DatabaseTypeName())
+			if z, ok := (scanArgs[i]).(*sql.NullBool); ok {
+				if z.Valid {
+					masterData[v.Name()] = z.Bool
+				} else {
+					masterData[v.Name()] = nil
+				}
+				continue
+			}
+
+			if z, ok := (scanArgs[i]).(*sql.NullString); ok {
+				if z.Valid {
+					if v.DatabaseTypeName() == "BYTEA" {
+						if len(z.String) > 0 {
+							masterData[v.Name()] = "0x" + hex.EncodeToString([]byte(z.String))
+						} else {
+							masterData[v.Name()] = nil
+						}
+					} else if v.DatabaseTypeName() == "NUMERIC" {
+						nbr, _ := new(big.Int).SetString(z.String, 10)
+						masterData[v.Name()] = nbr
+					} else {
+						masterData[v.Name()] = z.String
+					}
+				} else {
+					masterData[v.Name()] = nil
+				}
+				continue
+			}
+
+			if z, ok := (scanArgs[i]).(*sql.NullInt64); ok {
+				if z.Valid {
+					masterData[v.Name()] = z.Int64
+				} else {
+					masterData[v.Name()] = nil
+				}
+				continue
+			}
+
+			if z, ok := (scanArgs[i]).(*sql.NullInt32); ok {
+				if z.Valid {
+					masterData[v.Name()] = z.Int32
+				} else {
+					masterData[v.Name()] = nil
+				}
+				continue
+			}
+
+			if z, ok := (scanArgs[i]).(*sql.NullFloat64); ok {
+				if z.Valid {
+					masterData[v.Name()] = z.Float64
+				} else {
+					masterData[v.Name()] = nil
+				}
+				continue
+			}
+
+			if z, ok := (scanArgs[i]).(*sql.NullTime); ok {
+				if z.Valid {
+					masterData[v.Name()] = z.Time.Unix()
+				} else {
+					masterData[v.Name()] = nil
+				}
+				continue
+			}
+
+			masterData[v.Name()] = scanArgs[i]
+		}
+
+		finalRows = append(finalRows, masterData)
+	}
+
+	return finalRows, nil
+}
+
 func FormatTokenSymbolTitle(symbol string) string {
 	urls := xurls.Relaxed.FindAllString(symbol, -1)
 
@@ -390,6 +510,21 @@ func DayOfSlot(slot uint64) uint64 {
 	return Config.Chain.Config.SecondsPerSlot * slot / (24 * 3600)
 }
 
+// TimeToDay will return a days since genesis for an timestamp
+func TimeToDay(timestamp uint64) uint64 {
+	return uint64(time.Unix(int64(timestamp), 0).Sub(time.Unix(int64(Config.Chain.GenesisTimestamp), 0)).Hours() / 24)
+	// return time.Unix(int64(Config.Chain.GenesisTimestamp), 0).Add(time.Hour * time.Duration(24*int(day)))
+}
+
+func DayToTime(day int64) time.Time {
+	return time.Unix(int64(Config.Chain.GenesisTimestamp), 0).Add(time.Hour * time.Duration(24*int(day)))
+}
+
+func EpochsPerDay() uint64 {
+	day := time.Hour * 24
+	return (uint64(day.Seconds()) / Config.Chain.Config.SlotsPerEpoch) / Config.Chain.Config.SecondsPerSlot
+}
+
 // TimeToSlot returns time to slot in seconds
 func TimeToSlot(timestamp uint64) uint64 {
 	if Config.Chain.GenesisTimestamp > timestamp {
@@ -447,6 +582,17 @@ func GraffitiToSring(graffiti []byte) string {
 	return s
 }
 
+// AddressToWithdrawalCredentials converts a valid address to withdrawalCredentials
+func AddressToWithdrawalCredentials(address []byte) ([]byte, error) {
+	if IsValidEth1Address(fmt.Sprintf("%#x", address)) {
+		credentials := make([]byte, 12, 32)
+		credentials[0] = 0x01
+		credentials = append(credentials, address...)
+		return credentials, nil
+	}
+	return nil, fmt.Errorf("invalid eth1 address")
+}
+
 func fixUtf(r rune) rune {
 	if r == utf8.RuneError {
 		return -1
@@ -461,4 +607,32 @@ func MustParseHex(hexString string) []byte {
 		log.Fatal(err)
 	}
 	return data
+}
+
+var withdrawalCredentialsRE = regexp.MustCompile("^(0x)?00[0-9a-fA-F]{62}$")
+var withdrawalCredentialsAddressRE = regexp.MustCompile("^(0x)?010000000000000000000000[0-9a-fA-F]{40}$")
+var eth1TxRE = regexp.MustCompile("^(0x)?[0-9a-fA-F]{64}$")
+var zeroHashRE = regexp.MustCompile("^(0x)?0+$")
+
+// IsValidEth1Address verifies whether a string represents a valid eth1-address.
+func IsValidEth1Address(s string) bool {
+	return !zeroHashRE.MatchString(s) && eth1AddressRE.MatchString(s)
+}
+
+// IsValidEth1Tx verifies whether a string represents a valid eth1-tx-hash.
+func IsValidEth1Tx(s string) bool {
+	return !zeroHashRE.MatchString(s) && eth1TxRE.MatchString(s)
+}
+
+// IsValidWithdrawalCredentials verifies whether a string represents valid withdrawal credentials.
+func IsValidWithdrawalCredentials(s string) bool {
+	return withdrawalCredentialsRE.MatchString(s) || withdrawalCredentialsAddressRE.MatchString(s)
+}
+
+// https://github.com/badoux/checkmail/blob/f9f80cb795fa/checkmail.go#L37
+var emailRE = regexp.MustCompile("^[a-zA-Z0-9.!#$%&'*+/=?^_`{|}~-]+@[a-zA-Z0-9](?:[a-zA-Z0-9-]{0,61}[a-zA-Z0-9])?(?:\\.[a-zA-Z0-9](?:[a-zA-Z0-9-]{0,61}[a-zA-Z0-9])?)*$")
+
+// IsValidEmail verifies whether a string represents a valid email-address.
+func IsValidEmail(s string) bool {
+	return emailRE.MatchString(s)
 }

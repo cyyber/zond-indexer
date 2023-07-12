@@ -514,6 +514,36 @@ func GetValidatorPublicKey(index uint64) ([]byte, error) {
 	return publicKey, err
 }
 
+func GetCurrentDayClIncome(validator_indices []uint64) (map[uint64]int64, error) {
+	dayIncome := make(map[uint64]int64)
+	lastDay := int64(0)
+
+	err := ReaderDb.Get(&lastDay, "SELECT COALESCE(MAX(day), 0) FROM validator_stats_status")
+	if err != nil {
+		return dayIncome, err
+	}
+
+	currentDay := uint64(lastDay + 1)
+	startEpoch := currentDay * utils.EpochsPerDay()
+	endEpoch := startEpoch + utils.EpochsPerDay() - 1
+	income, err := MongodbClient.GetValidatorIncomeDetailsHistory(validator_indices, startEpoch, endEpoch)
+	if err != nil {
+		return dayIncome, err
+	}
+
+	// agregate all epoch income data to total day income for each validator
+	for validatorIndex, validatorIncome := range income {
+		if len(validatorIncome) == 0 {
+			continue
+		}
+		for _, validatorEpochIncome := range validatorIncome {
+			dayIncome[validatorIndex] += validatorEpochIncome.TotalClRewards()
+		}
+	}
+
+	return dayIncome, nil
+}
+
 // GetValidatorIndex will return the validator-index for a public key from the database
 func GetValidatorIndex(publicKey []byte) (uint64, error) {
 	var index uint64

@@ -694,3 +694,21 @@ type ApiValidatorProposalsResponse struct {
 	SyncaggregateSignature     string  `db:"syncaggregate_signature" json:"syncaggregate_signature"`
 	Voluntaryexitscount        uint64  `db:"voluntaryexitscount" json:"voluntaryexitscount"`
 }
+
+func (income *ValidatorEpochIncome) TotalClRewards() int64 {
+	rewards := income.AttestationSourceReward +
+		income.AttestationTargetReward +
+		income.AttestationHeadReward +
+		income.ProposerSlashingInclusionReward +
+		income.ProposerAttestationInclusionReward +
+		income.ProposerSyncInclusionReward +
+		income.SyncCommitteeReward +
+		income.SlashingReward
+
+	penalties := income.AttestationSourcePenalty +
+		income.AttestationTargetPenalty +
+		income.FinalityDelayPenalty +
+		income.SyncCommitteePenalty +
+		income.SlashingPenalty
+	return int64(rewards) - int64(penalties)
+}

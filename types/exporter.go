@@ -2,6 +2,7 @@ package types
 
 import (
 	"database/sql"
+	"math/big"
 
 	"github.com/jackc/pgtype"
 	"github.com/shopspring/decimal"
@@ -463,4 +464,22 @@ type HistoricEthPrice struct {
 	} `json:"market_data"`
 	Name   string `json:"name"`
 	Symbol string `json:"symbol"`
+}
+
+func (b *WeiString) BigInt() *big.Int {
+	// this is stupid
+
+	if b.Exp == 0 {
+		return b.Int
+	}
+	if b.Exp < 0 {
+		return b.Int
+	}
+
+	num := &big.Int{}
+	num.Set(b.Int)
+	mul := &big.Int{}
+	mul.Exp(big.NewInt(10), big.NewInt(int64(b.Exp)), nil)
+	num.Mul(num, mul)
+	return num
 }
