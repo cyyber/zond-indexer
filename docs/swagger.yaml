@@ -1,0 +1,1568 @@
+definitions:
+  types.APIAttestationResponse:
+    properties:
+      aggregationbits:
+        type: string
+      beaconblockroot:
+        type: string
+      block_index:
+        type: integer
+      block_root:
+        type: string
+      block_slot:
+        type: integer
+      committeeindex:
+        type: integer
+      signature:
+        type: string
+      slot:
+        type: integer
+      source_epoch:
+        type: integer
+      source_root:
+        type: string
+      target_epoch:
+        type: integer
+      target_root:
+        type: string
+      validators:
+        items:
+          type: integer
+        type: array
+    type: object
+  types.APIAttesterSlashingResponse:
+    properties:
+      attestation1_beaconblockroot:
+        type: string
+      attestation1_index:
+        type: integer
+      attestation1_indices:
+        items:
+          type: integer
+        type: array
+      attestation1_signature:
+        type: string
+      attestation1_slot:
+        type: integer
+      attestation1_source_epoch:
+        type: integer
+      attestation1_source_root:
+        type: string
+      attestation1_target_epoch:
+        type: integer
+      attestation1_target_root:
+        type: string
+      attestation2_beaconblockroot:
+        type: string
+      attestation2_index:
+        type: integer
+      attestation2_indices:
+        items:
+          type: integer
+        type: array
+      attestation2_signature:
+        type: string
+      attestation2_slot:
+        type: integer
+      attestation2_source_epoch:
+        type: integer
+      attestation2_source_root:
+        type: string
+      attestation2_target_epoch:
+        type: integer
+      attestation2_target_root:
+        type: string
+      block_index:
+        type: integer
+      block_root:
+        type: string
+      block_slot:
+        type: integer
+    type: object
+  types.APIEpochResponse:
+    properties:
+      attestationscount:
+        type: integer
+      attesterslashingscount:
+        type: integer
+      averagevalidatorbalance:
+        type: integer
+      blockscount:
+        type: integer
+      depositscount:
+        type: integer
+      eligibleether:
+        type: integer
+      epoch:
+        type: integer
+      finalized:
+        type: boolean
+      globalparticipationrate:
+        type: integer
+      missedblocks:
+        type: integer
+      orphanedblocks:
+        type: integer
+      proposedblocks:
+        type: integer
+      proposerslashingscount:
+        type: integer
+      rewards_exported:
+        type: integer
+      scheduledblocks:
+        type: integer
+      totalvalidatorbalance:
+        type: integer
+      ts:
+        type: integer
+      validatorscount:
+        type: integer
+      voluntaryexitscount:
+        type: integer
+      votedether:
+        type: integer
+      withdrawalcount:
+        type: integer
+    type: object
+  types.APIProposerSlashingResponse:
+    properties:
+      block_index:
+        type: integer
+      block_root:
+        type: string
+      block_slot:
+        type: integer
+      header1_bodyroot:
+        type: string
+      header1_parentroot:
+        type: string
+      header1_signature:
+        type: string
+      header1_slot:
+        type: integer
+      header1_stateroot:
+        type: string
+      header2_bodyroot:
+        type: string
+      header2_parentroot:
+        type: string
+      header2_signature:
+        type: string
+      header2_slot:
+        type: integer
+      header2_stateroot:
+        type: string
+      proposerindex:
+        type: integer
+    type: object
+  types.APIRocketpoolStatsResponse:
+    properties:
+      claim_interval_time:
+        type: string
+      claim_interval_time_start:
+        type: integer
+      current_node_demand:
+        type: number
+      current_node_fee:
+        type: number
+      effective_rpl_staked:
+        type: number
+      minipool_count:
+        type: integer
+      node_count:
+        type: integer
+      node_operator_rewards:
+        type: number
+      odao_member_count:
+        type: integer
+      reth_apr:
+        type: number
+      reth_exchange_rate:
+        type: number
+      reth_supply:
+        type: number
+      rpl_price:
+        type: integer
+      total_eth_balance:
+        type: number
+      total_eth_staking:
+        type: number
+    type: object
+  types.APISlotResponse:
+    properties:
+      attestationscount:
+        type: integer
+      attesterslashingscount:
+        type: integer
+      blockroot:
+        type: string
+      depositscount:
+        type: integer
+      epoch:
+        type: integer
+      eth1data_blockhash:
+        type: string
+      eth1data_depositcount:
+        type: integer
+      eth1data_depositroot:
+        type: string
+      exec_base_fee_per_gas:
+        type: integer
+        x-nullable: true
+      exec_block_hash:
+        type: string
+        x-nullable: true
+      exec_block_number:
+        type: integer
+        x-nullable: true
+      exec_extra_data:
+        type: string
+        x-nullable: true
+      exec_fee_recipient:
+        type: string
+        x-nullable: true
+      exec_gas_limit:
+        type: integer
+        x-nullable: true
+      exec_gas_used:
+        type: integer
+        x-nullable: true
+      exec_logs_bloom:
+        type: string
+        x-nullable: true
+      exec_parent_hash:
+        type: string
+        x-nullable: true
+      exec_random:
+        type: string
+        x-nullable: true
+      exec_receipts_root:
+        type: string
+        x-nullable: true
+      exec_state_root:
+        type: string
+        x-nullable: true
+      exec_timestamp:
+        type: integer
+        x-nullable: true
+      exec_transactions_count:
+        type: integer
+        x-nullable: true
+      graffiti:
+        type: string
+      graffiti_text:
+        type: string
+      parentroot:
+        type: string
+      proposer:
+        type: integer
+      proposerslashingscount:
+        type: integer
+      randaoreveal:
+        type: string
+      signature:
+        type: string
+      slot:
+        type: integer
+      stateroot:
+        type: string
+      status:
+        type: string
+      syncaggregate_bits:
+        type: string
+      syncaggregate_participation:
+        type: number
+      syncaggregate_signature:
+        type: string
+      voluntaryexitscount:
+        type: integer
+      withdrawalcount:
+        type: integer
+    type: object
+  types.APISyncCommitteeResponse:
+    properties:
+      end_epoch:
+        type: integer
+      period:
+        type: integer
+      start_epoch:
+        type: integer
+      validators:
+        items:
+          type: integer
+        type: array
+    type: object
+  types.APIValidatorResponse:
+    properties:
+      activation_eligibility_epoch:
+        type: integer
+      activation_epoch:
+        type: integer
+      balance:
+        type: integer
+      effective_balance:
+        type: integer
+      exit_epoch:
+        type: integer
+      last_attestation_slot:
+        type: integer
+      name:
+        type: string
+      pubkey:
+        type: string
+      slashed:
+        type: boolean
+      status:
+        type: string
+      validator_index:
+        type: integer
+      withdrawable_epoch:
+        type: integer
+      withdrawal_credentials:
+        type: string
+    type: object
+  types.APIVoluntaryExitResponse:
+    properties:
+      block_index:
+        type: integer
+      block_root:
+        type: string
+      block_slot:
+        type: integer
+      epoch:
+        type: integer
+      signature:
+        type: string
+      validatorindex:
+        type: integer
+    type: object
+  types.ApiResponse:
+    properties:
+      data: {}
+      status:
+        type: string
+    type: object
+  types.ApiRocketpoolValidatorResponse:
+    properties:
+      claimed_smoothing_pool:
+        type: number
+      index:
+        type: integer
+      minipool_address:
+        type: string
+      minipool_deposit_type:
+        type: string
+      minipool_node_fee:
+        type: number
+      minipool_status:
+        type: string
+      minipool_status_time:
+        type: integer
+      node_address:
+        type: string
+      node_max_rpl_stake:
+        type: number
+      node_min_rpl_stake:
+        type: number
+      node_rpl_stake:
+        type: number
+      node_timezone_location:
+        type: string
+      penalty_count:
+        type: integer
+      rpl_cumulative_rewards:
+        type: number
+      smoothing_pool_opted_in:
+        type: boolean
+      unclaimed_rpl_rewards:
+        type: number
+      unclaimed_smoothing_pool:
+        type: number
+    type: object
+  types.ApiValidatorBalanceHistoryResponse:
+    properties:
+      balance:
+        type: integer
+      effectivebalance:
+        type: integer
+      epoch:
+        type: integer
+      validatorindex:
+        type: integer
+      week:
+        type: integer
+      week_end:
+        type: string
+      week_start:
+        type: string
+    type: object
+  types.ApiValidatorDailyStatsResponse:
+    properties:
+      attester_slashings:
+        type: integer
+      day:
+        type: integer
+      day_end:
+        type: string
+      day_start:
+        type: string
+      deposits:
+        type: integer
+      deposits_amount:
+        type: integer
+      end_balance:
+        type: integer
+      end_effective_balance:
+        type: integer
+      max_balance:
+        type: integer
+      max_effective_balance:
+        type: integer
+      min_balance:
+        type: integer
+      min_effective_balance:
+        type: integer
+      missed_attestations:
+        type: integer
+      missed_blocks:
+        type: integer
+      missed_sync:
+        type: integer
+      orphaned_attestations:
+        type: integer
+      orphaned_blocks:
+        type: integer
+      orphaned_sync:
+        type: integer
+      participated_sync:
+        type: integer
+      proposed_blocks:
+        type: integer
+      proposer_slashings:
+        type: integer
+      start_balance:
+        type: integer
+      start_effective_balance:
+        type: integer
+      validatorindex:
+        type: integer
+      withdrawals:
+        type: integer
+      withdrawals_amount:
+        type: integer
+    type: object
+  types.ApiValidatorDepositsResponse:
+    properties:
+      amount:
+        type: integer
+      block_number:
+        type: integer
+      block_ts:
+        type: integer
+      from_address:
+        type: string
+      merkletree_index:
+        type: string
+      publickey:
+        type: string
+      removed:
+        type: boolean
+      signature:
+        type: string
+      tx_hash:
+        type: string
+      tx_index:
+        type: integer
+      tx_input:
+        type: string
+      valid_signature:
+        type: boolean
+      withdrawal_credentials:
+        type: string
+    type: object
+  types.ApiValidatorEth1Response:
+    properties:
+      public_key:
+        type: string
+      valid_signature:
+        type: boolean
+      validator_index:
+        type: integer
+    type: object
+  types.ApiValidatorExecutionPerformanceResponse:
+    properties:
+      performance1d:
+        type: integer
+      performance7d:
+        type: integer
+      performance31d:
+        type: integer
+      validatorindex:
+        type: integer
+    type: object
+  types.ApiValidatorIncomeHistoryResponse:
+    properties:
+      epoch:
+        type: integer
+      income:
+        properties:
+          attestation_head_reward:
+            type: integer
+          attestation_source_reward:
+            type: integer
+          attestation_target_reward:
+            type: integer
+        type: object
+      validatorindex:
+        type: integer
+      week:
+        type: integer
+      week_end:
+        type: string
+      week_start:
+        type: string
+    type: object
+  types.ApiValidatorPerformanceResponse:
+    properties:
+      balance:
+        type: integer
+      performance1d:
+        type: integer
+      performance7d:
+        type: integer
+      performance31d:
+        type: integer
+      performance365d:
+        type: integer
+      rank7d:
+        type: integer
+      validatorindex:
+        type: integer
+    type: object
+  types.ApiValidatorProposalsResponse:
+    properties:
+      attestationscount:
+        type: integer
+      attesterslashingscount:
+        type: integer
+      blockroot:
+        type: string
+      depositscount:
+        type: integer
+      epoch:
+        type: integer
+      eth1data_blockhash:
+        type: string
+      eth1data_depositcount:
+        type: integer
+      eth1data_depositroot:
+        type: string
+      exec_base_fee_per_gas:
+        type: integer
+      exec_block_hash:
+        type: string
+      exec_block_number:
+        type: integer
+      exec_extra_data:
+        type: string
+      exec_fee_recipient:
+        type: string
+      exec_gas_limit:
+        type: integer
+      exec_gas_used:
+        type: integer
+      exec_logs_bloom:
+        type: string
+      exec_parent_hash:
+        type: string
+      exec_random:
+        type: string
+      exec_receipts_root:
+        type: string
+      exec_state_root:
+        type: string
+      exec_timestamp:
+        type: integer
+      exec_transactions_count:
+        type: integer
+      graffiti:
+        type: string
+      graffiti_text:
+        type: string
+      parentroot:
+        type: string
+      proposer:
+        type: integer
+      proposerslashingscount:
+        type: integer
+      randaoreveal:
+        type: string
+      signature:
+        type: string
+      slot:
+        type: integer
+      stateroot:
+        type: string
+      status:
+        type: string
+      syncaggregate_bits:
+        type: string
+      syncaggregate_participation:
+        type: number
+      syncaggregate_signature:
+        type: string
+      voluntaryexitscount:
+        type: integer
+    type: object
+  types.ApiValidatorQueueResponse:
+    properties:
+      beaconchain_entering:
+        type: integer
+      beaconchain_exiting:
+        type: integer
+      validators_count:
+        type: integer
+    type: object
+  types.ApiValidatorWithdrawalResponse:
+    properties:
+      address:
+        type: string
+      amount:
+        type: integer
+      blockroot:
+        type: string
+      epoch:
+        type: integer
+      slot:
+        type: integer
+      validatorindex:
+        type: integer
+      withdrawalindex:
+        type: integer
+    type: object
+  types.ApiWithdrawalCredentialsResponse:
+    properties:
+      publickey:
+        type: string
+      validatorindex:
+        type: integer
+    type: object
+info:
+  contact: {}
+paths:
+  /api/v1/epoch/{epoch}:
+    get:
+      description: Returns information for a specified epoch by the epoch number or
+        an epoch tag (can be latest or finalized)
+      parameters:
+      - description: Epoch number, the string latest or the string finalized
+        in: path
+        name: epoch
+        required: true
+        type: string
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: Success
+          schema:
+            allOf:
+            - $ref: '#/definitions/types.ApiResponse'
+            - properties:
+                data:
+                  $ref: '#/definitions/types.APIEpochResponse'
+              type: object
+        "400":
+          description: Failure
+          schema:
+            $ref: '#/definitions/types.ApiResponse'
+        "500":
+          description: Server Error
+          schema:
+            $ref: '#/definitions/types.ApiResponse'
+      summary: Get epoch by number, latest, finalized
+      tags:
+      - Epoch
+  /api/v1/epoch/{epoch}/slots:
+    get:
+      description: Returns all slots for a specified epoch
+      parameters:
+      - description: Epoch number, the string latest or string finalized
+        in: path
+        name: epoch
+        required: true
+        type: string
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            allOf:
+            - $ref: '#/definitions/types.ApiResponse'
+            - properties:
+                data:
+                  items:
+                    $ref: '#/definitions/types.APISlotResponse'
+                  type: array
+              type: object
+        "400":
+          description: Bad Request
+          schema:
+            $ref: '#/definitions/types.ApiResponse'
+      summary: Get epoch blocks by epoch number, latest or finalized
+      tags:
+      - Epoch
+  /api/v1/eth1deposit/{txhash}:
+    get:
+      parameters:
+      - description: Eth1 transaction hash
+        in: path
+        name: txhash
+        required: true
+        type: string
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            $ref: '#/definitions/types.ApiResponse'
+        "400":
+          description: Bad Request
+          schema:
+            $ref: '#/definitions/types.ApiResponse'
+      summary: Get an eth1 deposit by its eth1 transaction hash
+      tags:
+      - Execution
+  /api/v1/ethstore/{day}:
+    get:
+      description: |-
+        ETH.STORE represents the average financial return validators on the Ethereum network have achieved in a 24-hour period.
+        For each 24-hour period the datapoint is denoted by the number of days that have passed since genesis for that period (= beaconchain-day)
+        See https://github.com/gobitfly/eth.store for further information.
+      parameters:
+      - description: The beaconchain-day (periods of <(24 * 60 * 60) // SlotsPerEpoch
+          // SecondsPerSlot> epochs) to get the the ETH.STORE for. Must be a number
+          or the string 'latest'.
+        in: path
+        name: day
+        required: true
+        type: string
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            $ref: '#/definitions/types.ApiResponse'
+        "400":
+          description: Bad Request
+          schema:
+            $ref: '#/definitions/types.ApiResponse'
+      summary: Get ETH.STORE reference rate for a specified beaconchain-day or the
+        latest day
+      tags:
+      - ETH.STORE
+  /api/v1/rocketpool/stats:
+    get:
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            allOf:
+            - $ref: '#/definitions/types.ApiResponse'
+            - properties:
+                data:
+                  $ref: '#/definitions/types.APIRocketpoolStatsResponse'
+              type: object
+        "400":
+          description: Bad Request
+          schema:
+            $ref: '#/definitions/types.ApiResponse'
+      summary: Get global rocketpool network statistics
+      tags:
+      - Rocketpool
+  /api/v1/rocketpool/validator/{indexOrPubkey}:
+    get:
+      parameters:
+      - description: Up to 100 validator indicesOrPubkeys, comma separated
+        in: path
+        name: indexOrPubkey
+        required: true
+        type: string
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            allOf:
+            - $ref: '#/definitions/types.ApiResponse'
+            - properties:
+                data:
+                  $ref: '#/definitions/types.ApiRocketpoolValidatorResponse'
+              type: object
+        "400":
+          description: Bad Request
+          schema:
+            $ref: '#/definitions/types.ApiResponse'
+      summary: Get rocketpool specific data for given validators
+      tags:
+      - Rocketpool
+  /api/v1/slot/{slot}/attestations:
+    get:
+      description: Returns the attestations included in a specific slot
+      parameters:
+      - description: Slot
+        in: path
+        name: slot
+        required: true
+        type: string
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            allOf:
+            - $ref: '#/definitions/types.ApiResponse'
+            - properties:
+                data:
+                  items:
+                    $ref: '#/definitions/types.APIAttestationResponse'
+                  type: array
+              type: object
+        "400":
+          description: Bad Request
+          schema:
+            $ref: '#/definitions/types.ApiResponse'
+      summary: Get the attestations included in a specific slot
+      tags:
+      - Slot
+  /api/v1/slot/{slot}/attesterslashings:
+    get:
+      description: Returns the attester slashings included in a specific slot
+      parameters:
+      - description: Slot
+        in: path
+        name: slot
+        required: true
+        type: string
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            allOf:
+            - $ref: '#/definitions/types.ApiResponse'
+            - properties:
+                data:
+                  items:
+                    $ref: '#/definitions/types.APIAttesterSlashingResponse'
+                  type: array
+              type: object
+        "400":
+          description: Bad Request
+          schema:
+            $ref: '#/definitions/types.ApiResponse'
+      summary: Get the attester slashings included in a specific slot
+      tags:
+      - Slot
+  /api/v1/slot/{slot}/deposits:
+    get:
+      description: Returns the deposits included in a specific block
+      parameters:
+      - description: Block slot
+        in: path
+        name: slot
+        required: true
+        type: string
+      - description: Limit the number of results
+        in: query
+        name: limit
+        type: string
+      - description: Offset the number of results
+        in: query
+        name: offset
+        type: string
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            $ref: '#/definitions/types.ApiResponse'
+        "400":
+          description: Bad Request
+          schema:
+            $ref: '#/definitions/types.ApiResponse'
+      summary: Get the deposits included in a specific block
+      tags:
+      - Slot
+  /api/v1/slot/{slot}/proposerslashings:
+    get:
+      description: Returns the proposer slashings included in a specific slot
+      parameters:
+      - description: Slot
+        in: path
+        name: slot
+        required: true
+        type: string
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            allOf:
+            - $ref: '#/definitions/types.ApiResponse'
+            - properties:
+                data:
+                  items:
+                    $ref: '#/definitions/types.APIProposerSlashingResponse'
+                  type: array
+              type: object
+        "400":
+          description: Bad Request
+          schema:
+            $ref: '#/definitions/types.ApiResponse'
+      summary: Get the proposer slashings included in a specific slot
+      tags:
+      - Slot
+  /api/v1/slot/{slot}/voluntaryexits:
+    get:
+      description: Returns the voluntary exits included in a specific slot
+      parameters:
+      - description: Slot
+        in: path
+        name: slot
+        required: true
+        type: string
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            allOf:
+            - $ref: '#/definitions/types.ApiResponse'
+            - properties:
+                data:
+                  items:
+                    $ref: '#/definitions/types.APIVoluntaryExitResponse'
+                  type: array
+              type: object
+        "400":
+          description: Bad Request
+          schema:
+            $ref: '#/definitions/types.ApiResponse'
+      summary: Get the voluntary exits included in a specific slot
+      tags:
+      - Slot
+  /api/v1/slot/{slot}/withdrawals:
+    get:
+      description: Returns the withdrawals included in a specific slot
+      parameters:
+      - description: Block slot
+        in: path
+        name: slot
+        required: true
+        type: string
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            $ref: '#/definitions/types.ApiResponse'
+        "400":
+          description: Bad Request
+          schema:
+            $ref: '#/definitions/types.ApiResponse'
+      summary: Get the withdrawals included in a specific slot
+      tags:
+      - Slot
+  /api/v1/slot/{slotOrHash}:
+    get:
+      description: Returns a slot by its slot number or root hash or the latest slot
+        with string latest
+      parameters:
+      - description: Slot or root hash or the string latest
+        in: path
+        name: slotOrHash
+        required: true
+        type: string
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            allOf:
+            - $ref: '#/definitions/types.ApiResponse'
+            - properties:
+                data:
+                  $ref: '#/definitions/types.APISlotResponse'
+              type: object
+        "400":
+          description: Bad Request
+          schema:
+            $ref: '#/definitions/types.ApiResponse'
+      summary: Get a slot by its slot number or root hash
+      tags:
+      - Slot
+  /api/v1/sync_committee/{period}:
+    get:
+      description: |-
+        Returns the sync-committee for a sync-period. Validators are sorted by sync-committee-index.
+        Sync committees where introduced in the Altair hardfork. Peroids before the hardfork do not contain sync-committees.
+        For mainnet sync-committes first started after epoch 74240 (period 290) and each sync-committee is active for 256 epochs.
+      parameters:
+      - description: Period ('latest' for latest period or 'next' for next period
+          in the future)
+        in: path
+        name: period
+        required: true
+        type: string
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            allOf:
+            - $ref: '#/definitions/types.ApiResponse'
+            - properties:
+                data:
+                  $ref: '#/definitions/types.APISyncCommitteeResponse'
+              type: object
+        "400":
+          description: Bad Request
+          schema:
+            $ref: '#/definitions/types.ApiResponse'
+      summary: Get the sync-committee for a sync-period
+      tags:
+      - SyncCommittee
+  /api/v1/validator/{indexOrPubkey}:
+    get:
+      description: Searching for too many validators based on their pubkeys will lead
+        to an "URI too long" error
+      parameters:
+      - description: Up to 100 validator indicesOrPubkeys, comma separated
+        in: path
+        name: indexOrPubkey
+        required: true
+        type: string
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            allOf:
+            - $ref: '#/definitions/types.ApiResponse'
+            - properties:
+                data:
+                  items:
+                    $ref: '#/definitions/types.APIValidatorResponse'
+                  type: array
+              type: object
+        "400":
+          description: Bad Request
+          schema:
+            $ref: '#/definitions/types.ApiResponse'
+      summary: Get up to 100 validators
+      tags:
+      - Validator
+    post:
+      parameters:
+      - description: Validator indicesOrPubkeys, comma separated
+        in: path
+        name: indexOrPubkey
+        required: true
+        type: string
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            allOf:
+            - $ref: '#/definitions/types.ApiResponse'
+            - properties:
+                data:
+                  items:
+                    $ref: '#/definitions/types.APIValidatorResponse'
+                  type: array
+              type: object
+        "400":
+          description: Bad Request
+          schema:
+            $ref: '#/definitions/types.ApiResponse'
+      summary: Get unlimited validators
+      tags:
+      - Validator
+  /api/v1/validator/{indexOrPubkey}/attestationeffectiveness:
+    get:
+      parameters:
+      - description: Up to 100 validator indicesOrPubkeys, comma separated
+        in: path
+        name: indexOrPubkey
+        required: true
+        type: string
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            $ref: '#/definitions/types.ApiResponse'
+        "400":
+          description: Bad Request
+          schema:
+            $ref: '#/definitions/types.ApiResponse'
+      summary: DEPRECIATED - USE /attestationefficiency (Get the current performance
+        of up to 100 validators)
+      tags:
+      - Validator
+  /api/v1/validator/{indexOrPubkey}/attestationefficiency:
+    get:
+      parameters:
+      - description: Up to 100 validator indicesOrPubkeys, comma separated
+        in: path
+        name: indexOrPubkey
+        required: true
+        type: string
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            $ref: '#/definitions/types.ApiResponse'
+        "400":
+          description: Bad Request
+          schema:
+            $ref: '#/definitions/types.ApiResponse'
+      summary: Get the current performance of up to 100 validators
+      tags:
+      - Validator
+  /api/v1/validator/{indexOrPubkey}/attestations:
+    get:
+      parameters:
+      - description: Up to 100 validator indicesOrPubkeys, comma separated
+        in: path
+        name: indexOrPubkey
+        required: true
+        type: string
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            $ref: '#/definitions/types.ApiResponse'
+        "400":
+          description: Bad Request
+          schema:
+            $ref: '#/definitions/types.ApiResponse'
+      summary: Get all attestations during the last 10 epochs for up to 100 validators
+      tags:
+      - Validator
+  /api/v1/validator/{indexOrPubkey}/balancehistory:
+    get:
+      parameters:
+      - description: Up to 100 validator indicesOrPubkeys, comma separated
+        in: path
+        name: indexOrPubkey
+        required: true
+        type: string
+      - description: The latest epoch to consider in the query
+        in: query
+        name: latest_epoch
+        type: integer
+      - description: Number of items to skip
+        in: query
+        name: offset
+        type: integer
+      - description: Maximum number of items to return, up to 100
+        in: query
+        name: limit
+        type: integer
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            allOf:
+            - $ref: '#/definitions/types.ApiResponse'
+            - properties:
+                data:
+                  items:
+                    $ref: '#/definitions/types.ApiValidatorBalanceHistoryResponse'
+                  type: array
+              type: object
+        "400":
+          description: Bad Request
+          schema:
+            $ref: '#/definitions/types.ApiResponse'
+      summary: Get the balance history of up to 100 validators
+      tags:
+      - Validator
+  /api/v1/validator/{indexOrPubkey}/deposits:
+    get:
+      parameters:
+      - description: Up to 100 validator indicesOrPubkeys, comma separated
+        in: path
+        name: indexOrPubkey
+        required: true
+        type: string
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            allOf:
+            - $ref: '#/definitions/types.ApiResponse'
+            - properties:
+                data:
+                  items:
+                    $ref: '#/definitions/types.ApiValidatorDepositsResponse'
+                  type: array
+              type: object
+        "400":
+          description: Bad Request
+          schema:
+            $ref: '#/definitions/types.ApiResponse'
+      summary: Get all eth1 deposits for up to 100 validators
+      tags:
+      - Validator
+  /api/v1/validator/{indexOrPubkey}/execution/performance:
+    get:
+      parameters:
+      - description: Up to 100 validator indicesOrPubkeys, comma separated
+        in: path
+        name: indexOrPubkey
+        required: true
+        type: string
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            allOf:
+            - $ref: '#/definitions/types.ApiResponse'
+            - properties:
+                data:
+                  items:
+                    $ref: '#/definitions/types.ApiValidatorExecutionPerformanceResponse'
+                  type: array
+              type: object
+        "400":
+          description: Bad Request
+          schema:
+            $ref: '#/definitions/types.ApiResponse'
+      summary: Get the current execution reward performance of up to 100 validators.
+        If block was produced via mev relayer, this endpoint will use the relayer
+        data as block reward instead of the normal block reward.
+      tags:
+      - Validator
+  /api/v1/validator/{indexOrPubkey}/incomedetailhistory:
+    get:
+      parameters:
+      - description: Up to 100 validator indicesOrPubkeys, comma separated
+        in: path
+        name: indexOrPubkey
+        required: true
+        type: string
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            allOf:
+            - $ref: '#/definitions/types.ApiResponse'
+            - properties:
+                data:
+                  items:
+                    $ref: '#/definitions/types.ApiValidatorIncomeHistoryResponse'
+                  type: array
+              type: object
+        "400":
+          description: Bad Request
+          schema:
+            $ref: '#/definitions/types.ApiResponse'
+      summary: Get the income detail history (last 100 epochs) of up to 100 validators
+      tags:
+      - Validator
+  /api/v1/validator/{indexOrPubkey}/performance:
+    get:
+      parameters:
+      - description: Up to 100 validator indicesOrPubkeys, comma separated
+        in: path
+        name: indexOrPubkey
+        required: true
+        type: string
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            allOf:
+            - $ref: '#/definitions/types.ApiResponse'
+            - properties:
+                data:
+                  items:
+                    $ref: '#/definitions/types.ApiValidatorPerformanceResponse'
+                  type: array
+              type: object
+        "400":
+          description: Bad Request
+          schema:
+            $ref: '#/definitions/types.ApiResponse'
+      summary: Get the current consensus reward performance of up to 100 validators
+      tags:
+      - Validator
+  /api/v1/validator/{indexOrPubkey}/proposals:
+    get:
+      parameters:
+      - description: Up to 100 validator indicesOrPubkeys, comma separated
+        in: path
+        name: indexOrPubkey
+        required: true
+        type: string
+      - description: Page the result by epoch
+        in: query
+        name: epoch
+        type: string
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            allOf:
+            - $ref: '#/definitions/types.ApiResponse'
+            - properties:
+                data:
+                  items:
+                    $ref: '#/definitions/types.ApiValidatorProposalsResponse'
+                  type: array
+              type: object
+        "400":
+          description: Bad Request
+          schema:
+            $ref: '#/definitions/types.ApiResponse'
+      summary: Get all proposed blocks during the last 100 epochs for up to 100 validators.
+        Optionally set the epoch query parameter to look back further.
+      tags:
+      - Validator
+  /api/v1/validator/{indexOrPubkey}/withdrawals:
+    get:
+      parameters:
+      - description: Up to 100 validator indicesOrPubkeys, comma separated
+        in: path
+        name: indexOrPubkey
+        required: true
+        type: string
+      - description: 'the start epoch for the withdrawal history (default: latest
+          epoch)'
+        in: query
+        name: epoch
+        type: integer
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            allOf:
+            - $ref: '#/definitions/types.ApiResponse'
+            - properties:
+                data:
+                  items:
+                    $ref: '#/definitions/types.ApiValidatorWithdrawalResponse'
+                  type: array
+              type: object
+        "400":
+          description: Bad Request
+          schema:
+            $ref: '#/definitions/types.ApiResponse'
+      summary: Get the withdrawal history of up to 100 validators for the last 100
+        epochs. To receive older withdrawals modify the epoch paraum
+      tags:
+      - Validator
+  /api/v1/validator/eth1/{eth1address}:
+    get:
+      parameters:
+      - description: Eth1 address from which the validator deposits were sent
+        in: path
+        name: eth1address
+        required: true
+        type: string
+      - description: 'Limit the number of results (default: 2000)'
+        in: query
+        name: limit
+        type: string
+      - description: 'Offset the results (default: 0)'
+        in: query
+        name: offset
+        type: string
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            allOf:
+            - $ref: '#/definitions/types.ApiResponse'
+            - properties:
+                data:
+                  items:
+                    $ref: '#/definitions/types.ApiValidatorEth1Response'
+                  type: array
+              type: object
+        "400":
+          description: Bad Request
+          schema:
+            $ref: '#/definitions/types.ApiResponse'
+      summary: Get all validators that belong to an eth1 address
+      tags:
+      - Validator
+  /api/v1/validator/leaderboard:
+    get:
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            allOf:
+            - $ref: '#/definitions/types.ApiResponse'
+            - properties:
+                data:
+                  items:
+                    $ref: '#/definitions/types.ApiValidatorPerformanceResponse'
+                  type: array
+              type: object
+        "400":
+          description: Bad Request
+          schema:
+            $ref: '#/definitions/types.ApiResponse'
+      summary: Get the current top 100 performing validators (using the income over
+        the last 7 days)
+      tags:
+      - Validator
+  /api/v1/validator/stats/{index}:
+    get:
+      parameters:
+      - description: Validator index
+        in: path
+        name: index
+        required: true
+        type: string
+      - description: 'End day (default: latest day)'
+        in: query
+        name: end_day
+        type: string
+      - description: 'Start day (default: 0)'
+        in: query
+        name: start_day
+        type: string
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            allOf:
+            - $ref: '#/definitions/types.ApiResponse'
+            - properties:
+                data:
+                  items:
+                    $ref: '#/definitions/types.ApiValidatorDailyStatsResponse'
+                  type: array
+              type: object
+        "400":
+          description: Bad Request
+          schema:
+            $ref: '#/definitions/types.ApiResponse'
+      summary: Get the daily validator stats by the validator index
+      tags:
+      - Validator
+  /api/v1/validator/withdrawalCredentials/{withdrawalCredentialsOrEth1address}:
+    get:
+      description: Returns the validator indexes and pubkeys of a withdrawal credential
+        or eth1 address
+      parameters:
+      - description: Provide a withdrawal credential or an eth1 address with an optional
+          0x prefix
+        in: path
+        name: withdrawalCredentialsOrEth1address
+        required: true
+        type: string
+      - default: 10
+        description: 'Limit the number of results, maximum: 200'
+        in: query
+        name: limit
+        type: integer
+      - default: 0
+        description: Offset the number of results
+        in: query
+        name: offset
+        type: integer
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            allOf:
+            - $ref: '#/definitions/types.ApiResponse'
+            - properties:
+                data:
+                  items:
+                    $ref: '#/definitions/types.ApiWithdrawalCredentialsResponse'
+                  type: array
+              type: object
+        "400":
+          description: Bad Request
+          schema:
+            $ref: '#/definitions/types.ApiResponse'
+      summary: Get validator indexes and pubkeys of a withdrawal credential or eth1
+        address
+      tags:
+      - Validator
+  /api/v1/validators/queue:
+    get:
+      description: Returns the current number of validators entering and exiting the
+        beacon chain
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            allOf:
+            - $ref: '#/definitions/types.ApiResponse'
+            - properties:
+                data:
+                  $ref: '#/definitions/types.ApiValidatorQueueResponse'
+              type: object
+        "400":
+          description: Bad Request
+          schema:
+            $ref: '#/definitions/types.ApiResponse'
+      summary: Get the current validator queue
+      tags:
+      - Validator
+swagger: "2.0"

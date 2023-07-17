@@ -7,8 +7,10 @@ import (
 	"encoding/json"
 	"errors"
 	"fmt"
+	"html/template"
 	"io/ioutil"
 	"log"
+	"math"
 	"math/big"
 	"net/http"
 	"os"
@@ -24,13 +26,17 @@ import (
 	"github.com/Prajjawalk/zond-indexer/price"
 	"github.com/Prajjawalk/zond-indexer/types"
 	"github.com/ethereum/go-ethereum/accounts/abi"
+	"github.com/ethereum/go-ethereum/common/hexutil"
+	"github.com/ethereum/go-ethereum/params"
+	"github.com/kataras/i18n"
 	"github.com/kelseyhightower/envconfig"
 	"github.com/lib/pq"
 	"github.com/mvdan/xurls"
-	"github.com/prysmaticlabs/prysm/v3/beacon-chain/core/signing"
-	prysm_params "github.com/prysmaticlabs/prysm/v3/config/params"
 	"github.com/sirupsen/logrus"
 	"go.mongodb.org/mongo-driver/bson"
+	"golang.org/x/text/cases"
+	"golang.org/x/text/language"
+	"golang.org/x/text/message"
 	"gopkg.in/yaml.v2"
 )
 
@@ -533,6 +539,10 @@ func TimeToSlot(timestamp uint64) uint64 {
 	return (timestamp - Config.Chain.GenesisTimestamp) / Config.Chain.Config.SecondsPerSlot
 }
 
+func WeiToEther(wei *big.Int) *big.Float {
+	return new(big.Float).Quo(new(big.Float).SetInt(wei), big.NewFloat(params.Ether))
+}
+
 func SyncPeriodOfEpoch(epoch uint64) uint64 {
 	if epoch < Config.Chain.Config.AltairForkEpoch {
 		return 0
@@ -544,25 +554,25 @@ func FirstEpochOfSyncPeriod(syncPeriod uint64) uint64 {
 	return syncPeriod * Config.Chain.Config.EpochsPerSyncCommitteePeriod
 }
 
-func GetSigningDomain() ([]byte, error) {
-	beaconConfig := prysm_params.BeaconConfig()
-	genForkVersion, err := hex.DecodeString(strings.Replace(Config.Chain.Config.GenesisForkVersion, "0x", "", -1))
-	if err != nil {
-		return nil, err
-	}
+// func GetSigningDomain() ([]byte, error) {
+// 	beaconConfig := prysm_params.BeaconConfig()
+// 	genForkVersion, err := hex.DecodeString(strings.Replace(Config.Chain.Config.GenesisForkVersion, "0x", "", -1))
+// 	if err != nil {
+// 		return nil, err
+// 	}
 
-	domain, err := signing.ComputeDomain(
-		beaconConfig.DomainDeposit,
-		genForkVersion,
-		beaconConfig.ZeroHash[:],
-	)
+// 	domain, err := signing.ComputeDomain(
+// 		beaconConfig.DomainDeposit,
+// 		genForkVersion,
+// 		beaconConfig.ZeroHash[:],
+// 	)
 
-	if err != nil {
-		return nil, err
-	}
+// 	if err != nil {
+// 		return nil, err
+// 	}
 
-	return domain, err
-}
+// 	return domain, err
+// }
 
 // WaitForCtrlC will block/wait until a control-c is pressed
 func WaitForCtrlC() {
@@ -635,4 +645,240 @@ var emailRE = regexp.MustCompile("^[a-zA-Z0-9.!#$%&'*+/=?^_`{|}~-]+@[a-zA-Z0-9](
 // IsValidEmail verifies whether a string represents a valid email-address.
 func IsValidEmail(s string) bool {
 	return emailRE.MatchString(s)
+}
+
+// GetTemplateFuncs will get the template functions
+func GetTemplateFuncs() template.FuncMap {
+	return template.FuncMap{
+		"includeHTML":                             IncludeHTML,
+		"includeSvg":                              IncludeSvg,
+		"formatHTML":                              FormatMessageToHtml,
+		"formatBalance":                           FormatBalance,
+		"formatBalanceChange":                     FormatBalanceChange,
+		"formatNotificationChannel":               FormatNotificationChannel,
+		"formatBalanceSql":                        FormatBalanceSql,
+		"formatCurrentBalance":                    FormatCurrentBalance,
+		"formatEffectiveBalance":                  FormatEffectiveBalance,
+		"formatBlockStatus":                       FormatBlockStatus,
+		"formatBlockSlot":                         FormatBlockSlot,
+		"formatSlotToTimestamp":                   FormatSlotToTimestamp,
+		"formatDepositAmount":                     FormatDepositAmount,
+		"formatEpoch":                             FormatEpoch,
+		"fixAddressCasing":                        FixAddressCasing,
+		"formatAddressLong":                       FormatAddressLong,
+		"formatHashLong":                          FormatHashLong,
+		"formatEth1Block":                         FormatEth1Block,
+		"formatEth1BlockHash":                     FormatEth1BlockHash,
+		"formatEth1Address":                       FormatEth1Address,
+		"formatEth1AddressStringLowerCase":        FormatEth1AddressStringLowerCase,
+		"formatEth1TxHash":                        FormatEth1TxHash,
+		"formatGraffiti":                          FormatGraffiti,
+		"formatHash":                              FormatHash,
+		"formatWithdawalCredentials":              FormatWithdawalCredentials,
+		"formatAddressToWithdrawalCredentials":    FormatAddressToWithdrawalCredentials,
+		"formatBitvector":                         FormatBitvector,
+		"formatBitlist":                           FormatBitlist,
+		"formatBitvectorValidators":               formatBitvectorValidators,
+		"formatParticipation":                     FormatParticipation,
+		"formatIncome":                            FormatIncome,
+		"formatIncomeNoCurrency":                  FormatIncomeNoCurrency,
+		"formatIncomeSql":                         FormatIncomeSql,
+		"formatSqlInt64":                          FormatSqlInt64,
+		"formatValidator":                         FormatValidator,
+		"formatValidatorWithName":                 FormatValidatorWithName,
+		"formatValidatorInt64":                    FormatValidatorInt64,
+		"formatValidatorStatus":                   FormatValidatorStatus,
+		"formatPercentage":                        FormatPercentage,
+		"formatPercentageWithPrecision":           FormatPercentageWithPrecision,
+		"formatPercentageWithGPrecision":          FormatPercentageWithGPrecision,
+		"formatPercentageColored":                 FormatPercentageColored,
+		"formatPercentageColoredEmoji":            FormatPercentageColoredEmoji,
+		"formatPublicKey":                         FormatPublicKey,
+		"formatSlashedValidator":                  FormatSlashedValidator,
+		"formatSlashedValidatorInt64":             FormatSlashedValidatorInt64,
+		"formatTimestamp":                         FormatTimestamp,
+		"formatTsWithoutTooltip":                  FormatTsWithoutTooltip,
+		"formatTimestampTs":                       FormatTimestampTs,
+		"formatTime":                              FormatTime,
+		"formatValidatorName":                     FormatValidatorName,
+		"formatAttestationInclusionEffectiveness": FormatAttestationInclusionEffectiveness,
+		"formatValidatorTags":                     FormatValidatorTags,
+		"formatValidatorTag":                      FormatValidatorTag,
+		"formatRPL":                               FormatRPL,
+		"formatETH":                               FormatETH,
+		"formatFloat":                             FormatFloat,
+		"formatAmount":                            FormatAmount,
+		"formatExchangedAmount":                   FormatExchangedAmount,
+		"formatBigAmount":                         FormatBigAmount,
+		"formatBytesAmount":                       FormatBytesAmount,
+		"formatYesNo":                             FormatYesNo,
+		"formatAmountFormatted":                   FormatAmountFormatted,
+		"formatAddressAsLink":                     FormatAddressAsLink,
+		"formatBuilder":                           FormatBuilder,
+		"formatDifficulty":                        FormatDifficulty,
+		"getCurrencyLabel":                        price.GetCurrencyLabel,
+		"epochOfSlot":                             EpochOfSlot,
+		"dayToTime":                               DayToTime,
+		"contains":                                strings.Contains,
+		"roundDecimals":                           RoundDecimals,
+		"bigIntCmp":                               func(i *big.Int, j int) int { return i.Cmp(big.NewInt(int64(j))) },
+		"mod":                                     func(i, j int) bool { return i%j == 0 },
+		"sub":                                     func(i, j int) int { return i - j },
+		"subUI64":                                 func(i, j uint64) uint64 { return i - j },
+		"add":                                     func(i, j int) int { return i + j },
+		"addI64":                                  func(i, j int64) int64 { return i + j },
+		"addUI64":                                 func(i, j uint64) uint64 { return i + j },
+		"addFloat64":                              func(i, j float64) float64 { return i + j },
+		"mul":                                     func(i, j float64) float64 { return i * j },
+		"div":                                     func(i, j float64) float64 { return i / j },
+		"divInt":                                  func(i, j int) float64 { return float64(i) / float64(j) },
+		"nef":                                     func(i, j float64) bool { return i != j },
+		"gtf":                                     func(i, j float64) bool { return i > j },
+		"ltf":                                     func(i, j float64) bool { return i < j },
+		"round": func(i float64, n int) float64 {
+			return math.Round(i*math.Pow10(n)) / math.Pow10(n)
+		},
+		"percent": func(i float64) float64 { return i * 100 },
+		"formatThousands": func(i float64) string {
+			p := message.NewPrinter(language.English)
+			return p.Sprintf("%.0f\n", i)
+		},
+		"formatThousandsFancy": func(i float64) string {
+			p := message.NewPrinter(language.English)
+			return p.Sprintf("%v\n", i)
+		},
+		"formatThousandsInt": func(i int) string {
+			p := message.NewPrinter(language.English)
+			return p.Sprintf("%d", i)
+		},
+		"formatStringThousands": FormatThousandsEnglish,
+		"derefString":           DerefString,
+		"trLang":                TrLang,
+		"firstCharToUpper":      func(s string) string { return cases.Title(language.English).String(s) },
+		"eqsp": func(a, b *string) bool {
+			if a != nil && b != nil {
+				return *a == *b
+			}
+			return false
+		},
+		"stringsJoin":     strings.Join,
+		"formatAddCommas": FormatAddCommas,
+		"encodeToString":  hex.EncodeToString,
+
+		"formatTokenBalance":      FormatTokenBalance,
+		"formatAddressEthBalance": FormatAddressEthBalance,
+		"toBase64":                ToBase64,
+		"bytesToNumberString": func(input []byte) string {
+			return new(big.Int).SetBytes(input).String()
+		},
+		"bigQuo": func(num []byte, denom []byte) string {
+			numFloat := new(big.Float).SetInt(new(big.Int).SetBytes(num))
+			denomFloat := new(big.Float).SetInt(new(big.Int).SetBytes(denom))
+			res := new(big.Float).Quo(numFloat, denomFloat)
+			return res.Text('f', int(res.MinPrec()))
+		},
+		"bigDecimalShift": func(num []byte, shift []byte) string {
+			numFloat := new(big.Float).SetInt(new(big.Int).SetBytes(num))
+			denom := new(big.Int).Exp(big.NewInt(10), new(big.Int).SetBytes(shift), nil)
+			// shift := new(big.Float).SetInt(new(big.Int).SetBytes(shift))
+			res := new(big.Float).Quo(numFloat, new(big.Float).SetInt(denom))
+			return res.Text('f', int(res.MinPrec()))
+		},
+		"trimTrailingZero": func(num string) string {
+			if strings.Contains(num, ".") {
+				return strings.TrimRight(strings.TrimRight(num, "0"), ".")
+			}
+			return num
+		},
+		// ETH1 related formatting
+		"formatEth1TxStatus":    FormatEth1TxStatus,
+		"formatTimestampUInt64": FormatTimestampUInt64,
+		"formatEth1AddressFull": FormatEth1AddressFull,
+		"byteToString": func(num []byte) string {
+			return string(num)
+		},
+		"bigToInt": func(val *hexutil.Big) *big.Int {
+			if val != nil {
+				return val.ToInt()
+			}
+			return nil
+		},
+		"formatBigNumberAddCommasFormated": FormatBigNumberAddCommasFormated,
+		"formatEthstoreComparison":         FormatEthstoreComparison,
+		"formatPoolPerformance":            FormatPoolPerformance,
+		"formatTokenSymbolTitle":           FormatTokenSymbolTitle,
+		"formatTokenSymbol":                FormatTokenSymbol,
+		"formatTokenSymbolHTML":            FormatTokenSymbolHTML,
+		"dict": func(values ...interface{}) (map[string]interface{}, error) {
+			if len(values)%2 != 0 {
+				return nil, errors.New("invalid dict call")
+			}
+			dict := make(map[string]interface{}, len(values)/2)
+			for i := 0; i < len(values); i += 2 {
+				key, ok := values[i].(string)
+				if !ok {
+					return nil, errors.New("dict keys must be strings")
+				}
+				dict[key] = values[i+1]
+			}
+			return dict, nil
+		},
+	}
+}
+
+// IncludeHTML adds html to the page
+func IncludeHTML(path string) template.HTML {
+	b, err := ioutil.ReadFile(path)
+	if err != nil {
+		log.Printf("includeHTML - error reading file: %v", err)
+		return ""
+	}
+	return template.HTML(string(b))
+}
+
+// RoundDecimals rounds (nearest) a number to the specified number of digits after comma
+func RoundDecimals(f float64, n int) float64 {
+	d := math.Pow10(n)
+	return math.Round(f*d) / d
+}
+
+var localiser *i18n.I18n
+
+// making sure language files are loaded only once
+func getLocaliser() *i18n.I18n {
+	if localiser == nil {
+		localiser, err := i18n.New(i18n.Glob("locales/*/*"), "en-US", "ru-RU")
+		if err != nil {
+			log.Println(err)
+		}
+		return localiser
+	}
+	return localiser
+}
+
+func FormatEthstoreComparison(pool string, val float64) template.HTML {
+	prefix := ""
+	textClass := "text-danger"
+	ou := "underperforms"
+	if val > 0 {
+		prefix = "+"
+		textClass = "text-success"
+		ou = "outperforms"
+	}
+
+	return template.HTML(fmt.Sprintf(`<sub title="%s %s the ETH.STORE indicator by %s%.2f%%" data-toggle="tooltip" class="%s">(%s%.2f%%)</sub>`, pool, ou, prefix, val, textClass, prefix, val))
+}
+
+func FormatPoolPerformance(val float64) template.HTML {
+	return template.HTML(fmt.Sprintf(`<span data-toggle="tooltip" title=%f%%>%s%%</span>`, val, fmt.Sprintf("%.2f", val)))
+}
+
+func FormatTokenSymbolHTML(tmpl template.HTML) template.HTML {
+	tmplString := (string(tmpl))
+	symbolTitle := FormatTokenSymbolTitle(tmplString)
+
+	tmplString = FormatTokenSymbol(tmplString)
+	tmpl = template.HTML(strings.ReplaceAll(tmplString, `title=""`, fmt.Sprintf(`title="%s"`, symbolTitle)))
+
+	return tmpl
 }

@@ -24,8 +24,6 @@ import (
 	"github.com/lib/pq"
 	"github.com/patrickmn/go-cache"
 	"github.com/pressly/goose/v3"
-	prysm_deposit "github.com/prysmaticlabs/prysm/v3/contracts/deposit"
-	ethpb "github.com/prysmaticlabs/prysm/v3/proto/prysm/v1alpha1"
 	"github.com/sirupsen/logrus"
 
 	"github.com/Prajjawalk/zond-indexer/rpc"
@@ -1452,10 +1450,10 @@ func saveBlocks(blocks map[uint64]map[string]*types.Block, tx *sqlx.Tx) error {
 		metrics.TaskDuration.WithLabelValues("db_save_blocks").Observe(time.Since(start).Seconds())
 	}()
 
-	domain, err := utils.GetSigningDomain()
-	if err != nil {
-		return err
-	}
+	// domain, err := utils.GetSigningDomain()
+	// if err != nil {
+	// 	return err
+	// }
 
 	stmtBlock, err := tx.Prepare(`
 		INSERT INTO blocks (epoch, slot, blockroot, parentroot, stateroot, signature, randaoreveal, graffiti, graffiti_text, eth1data_depositroot, eth1data_depositcount, eth1data_blockhash, syncaggregate_bits, syncaggregate_signature, proposerslashingscount, attesterslashingscount, attestationscount, depositscount, withdrawalcount, voluntaryexitscount, syncaggregate_participation, proposer, status, exec_parent_hash, exec_fee_recipient, exec_state_root, exec_receipts_root, exec_logs_bloom, exec_random, exec_block_number, exec_gas_limit, exec_gas_used, exec_timestamp, exec_extra_data, exec_base_fee_per_gas, exec_block_hash, exec_transactions_count)
@@ -1732,14 +1730,15 @@ func saveBlocks(blocks map[uint64]map[string]*types.Block, tx *sqlx.Tx) error {
 
 			for i, d := range b.Deposits {
 
-				err := prysm_deposit.VerifyDepositSignature(&ethpb.Deposit_Data{
-					PublicKey:             d.PublicKey,
-					WithdrawalCredentials: d.WithdrawalCredentials,
-					Amount:                d.Amount,
-					Signature:             d.Signature,
-				}, domain)
+				// err := prysm_deposit.VerifyDepositSignature(&ethpb.Deposit_Data{
+				// 	PublicKey:             d.PublicKey,
+				// 	WithdrawalCredentials: d.WithdrawalCredentials,
+				// 	Amount:                d.Amount,
+				// 	Signature:             d.Signature,
+				// }, domain)
 
-				signatureValid := err == nil
+				// signatureValid := err == nil
+				signatureValid := true
 
 				_, err = stmtDeposits.Exec(b.Slot, i, b.BlockRoot, nil, d.PublicKey, d.WithdrawalCredentials, d.Amount, d.Signature, signatureValid)
 				if err != nil {

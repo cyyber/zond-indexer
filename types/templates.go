@@ -1,6 +1,7 @@
 package types
 
 import (
+	"database/sql"
 	"html/template"
 	"math/big"
 	"time"
@@ -73,6 +74,20 @@ type GasNowHistory struct {
 	Rapid    *big.Int
 }
 
+type ChartDataPoint struct {
+	X     float64 `json:"x"`
+	Y     float64 `json:"y"`
+	Color string  `json:"color"`
+}
+
+// DashboardValidatorBalanceHistory is a struct to hold data for the balance-history on the dashboard-page
+type DashboardValidatorBalanceHistory struct {
+	Epoch            uint64  `db:"epoch"`
+	Balance          uint64  `db:"balance"`
+	EffectiveBalance uint64  `db:"effectivebalance"`
+	ValidatorCount   float64 `db:"validatorcount"`
+}
+
 // ValidatorBalance is a struct for the validator balance data
 type ValidatorBalance struct {
 	Epoch            uint64 `db:"epoch"`
@@ -80,6 +95,16 @@ type ValidatorBalance struct {
 	EffectiveBalance uint64 `db:"effectivebalance"`
 	Index            uint64 `db:"validatorindex"`
 	PublicKey        []byte `db:"pubkey"`
+}
+
+// ValidatorBalanceHistory is a struct for the validator income history data
+type ValidatorIncomeHistory struct {
+	Day              int64         `db:"day"` // day can be -1 which is pre-genesis
+	ClRewards        int64         `db:"cl_rewards_gwei"`
+	EndBalance       sql.NullInt64 `db:"end_balance"`
+	StartBalance     sql.NullInt64 `db:"start_balance"`
+	DepositAmount    sql.NullInt64 `db:"deposits_amount"`
+	WithdrawalAmount sql.NullInt64 `db:"withdrawals_amount"`
 }
 
 // ValidatorPerformance is a struct for the validator performance data

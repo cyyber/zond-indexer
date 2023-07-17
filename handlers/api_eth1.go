@@ -4,7 +4,6 @@ import (
 	"encoding/hex"
 	"fmt"
 	"math/big"
-	"net/http"
 	"strings"
 	"time"
 
@@ -12,6 +11,7 @@ import (
 	"github.com/Prajjawalk/zond-indexer/services"
 	"github.com/Prajjawalk/zond-indexer/types"
 	"github.com/ethereum/go-ethereum/common"
+	"github.com/gin-gonic/gin"
 	"github.com/gorilla/mux"
 	"github.com/lib/pq"
 	"golang.org/x/exp/maps"
@@ -25,8 +25,9 @@ import (
 // @Success 200 {object} types.ApiResponse
 // @Failure 400 {object} types.ApiResponse
 // @Router /api/v1/eth1deposit/{txhash} [get]
-func ApiEth1Deposit(w http.ResponseWriter, r *http.Request) {
-
+func ApiEth1Deposit(c *gin.Context) {
+	w := c.Writer
+	r := c.Request
 	w.Header().Set("Content-Type", "application/json")
 
 	vars := mux.Vars(r)
@@ -143,4 +144,28 @@ func getBlockNumbersAndMapProposer(data []types.ExecBlockProposer) ([]uint64, ma
 		blockToProposerMap[execBlock.ExecBlock] = execBlock
 	}
 	return blockList, blockToProposerMap
+}
+
+func findExecBlockNumbersByProposerIndex(indices []uint64, offset, limit uint64) ([]uint64, map[uint64]types.ExecBlockProposer, error) {
+	var blockListSub []types.ExecBlockProposer
+	err := db.ReaderDb.Select(&blockListSub,
+		`SELECT 
+			exec_block_number,
+			proposer,
+			slot,
+			epoch  
+		FROM blocks 
+		WHERE proposer = ANY($1)
+		AND exec_block_number IS NOT NULL AND exec_block_number > 0 
+		ORDER BY exec_block_number DESC
+		OFFSET $2 LIMIT $3`,
+		pq.Array(indices),
+		offset,
+		limit,
+	)
+	if err != nil {
+		return nil, nil, err
+	}
+	blockList, blockProposerMap := getBlockNumbersAndMapProposer(blockListSub)
+	return blockList, blockProposerMap, nil
 }

@@ -18,10 +18,7 @@ import (
 	gethTypes "github.com/ethereum/go-ethereum/core/types"
 	"github.com/ethereum/go-ethereum/ethclient"
 	gethRPC "github.com/ethereum/go-ethereum/rpc"
-	"github.com/prysmaticlabs/prysm/v3/contracts/deposit"
 	"github.com/prysmaticlabs/prysm/v3/crypto/hash"
-	"github.com/prysmaticlabs/prysm/v3/encoding/bytesutil"
-	ethpb "github.com/prysmaticlabs/prysm/v3/proto/prysm/v1alpha1"
 )
 
 var eth1LookBack = uint64(100)
@@ -173,40 +170,40 @@ func fetchEth1Deposits(fromBlock, toBlock uint64) (depositsToSave []*types.Eth1D
 	blocksToFetch := []uint64{}
 	txsToFetch := []string{}
 
-	domain, err := utils.GetSigningDomain()
-	if err != nil {
-		return nil, err
-	}
+	// domain, err := utils.GetSigningDomain()
+	// if err != nil {
+	// 	return nil, err
+	// }
 
 	for _, depositLog := range depositLogs {
 		if depositLog.Topics[0] != eth1DepositEventSignature {
 			continue
 		}
-		pubkey, withdrawalCredentials, amount, signature, merkletreeIndex, err := deposit.UnpackDepositLogData(depositLog.Data)
-		if err != nil {
-			return depositsToSave, fmt.Errorf("error unpacking eth1-deposit-log: %x: %w", depositLog.Data, err)
-		}
-		err = deposit.VerifyDepositSignature(&ethpb.Deposit_Data{
-			PublicKey:             pubkey,
-			WithdrawalCredentials: withdrawalCredentials,
-			Amount:                bytesutil.FromBytes8(amount),
-			Signature:             signature,
-		}, domain)
-		validSignature := err == nil
+		// pubkey, withdrawalCredentials, amount, signature, merkletreeIndex, err := deposit.UnpackDepositLogData(depositLog.Data)
+		// if err != nil {
+		// 	return depositsToSave, fmt.Errorf("error unpacking eth1-deposit-log: %x: %w", depositLog.Data, err)
+		// }
+		// err = deposit.VerifyDepositSignature(&ethpb.Deposit_Data{
+		// 	PublicKey:             pubkey,
+		// 	WithdrawalCredentials: withdrawalCredentials,
+		// 	Amount:                bytesutil.FromBytes8(amount),
+		// 	Signature:             signature,
+		// }, domain)
+		// validSignature := err == nil
 		blocksToFetch = append(blocksToFetch, depositLog.BlockNumber)
 		txsToFetch = append(txsToFetch, depositLog.TxHash.Hex())
-		depositsToSave = append(depositsToSave, &types.Eth1Deposit{
-			TxHash:                depositLog.TxHash.Bytes(),
-			TxIndex:               uint64(depositLog.TxIndex),
-			BlockNumber:           depositLog.BlockNumber,
-			PublicKey:             pubkey,
-			WithdrawalCredentials: withdrawalCredentials,
-			Amount:                bytesutil.FromBytes8(amount),
-			Signature:             signature,
-			MerkletreeIndex:       merkletreeIndex,
-			Removed:               depositLog.Removed,
-			ValidSignature:        validSignature,
-		})
+		// depositsToSave = append(depositsToSave, &types.Eth1Deposit{
+		// 	TxHash:                depositLog.TxHash.Bytes(),
+		// 	TxIndex:               uint64(depositLog.TxIndex),
+		// 	BlockNumber:           depositLog.BlockNumber,
+		// 	PublicKey:             pubkey,
+		// 	WithdrawalCredentials: withdrawalCredentials,
+		// 	Amount:                bytesutil.FromBytes8(amount),
+		// 	Signature:             signature,
+		// 	MerkletreeIndex:       merkletreeIndex,
+		// 	Removed:               depositLog.Removed,
+		// 	ValidSignature:        validSignature,
+		// })
 	}
 
 	headers, txs, err := eth1BatchRequestHeadersAndTxs(blocksToFetch, txsToFetch)

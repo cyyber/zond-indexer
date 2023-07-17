@@ -1,26 +1,33 @@
 package handlers
 
 import (
+	"context"
 	"database/sql"
 	"encoding/hex"
 	"encoding/json"
 	"fmt"
+	"io/ioutil"
 	"math"
 	"net/http"
 	"net/url"
 	"sort"
 	"strconv"
 	"strings"
+	"sync/atomic"
 	"time"
 
 	"github.com/Prajjawalk/zond-indexer/db"
+	"github.com/Prajjawalk/zond-indexer/price"
 	"github.com/Prajjawalk/zond-indexer/services"
 	"github.com/Prajjawalk/zond-indexer/types"
 	"github.com/Prajjawalk/zond-indexer/utils"
 	"github.com/ethereum/go-ethereum/common"
+	"github.com/gin-gonic/gin"
 	"github.com/gorilla/mux"
+	"github.com/jmoiron/sqlx"
 	"github.com/lib/pq"
 	utilMath "github.com/protolambda/zrnt/eth2/util/math"
+	"golang.org/x/sync/errgroup"
 )
 
 // ApiEpoch godoc
@@ -33,7 +40,9 @@ import (
 // @Failure 400 {object} types.ApiResponse "Failure"
 // @Failure 500 {object} types.ApiResponse "Server Error"
 // @Router /api/v1/epoch/{epoch} [get]
-func ApiEpoch(w http.ResponseWriter, r *http.Request) {
+func ApiEpoch(c *gin.Context) {
+	w := c.Writer
+	r := c.Request
 	w.Header().Set("Content-Type", "application/json")
 
 	vars := mux.Vars(r)
@@ -97,7 +106,9 @@ func ApiEpoch(w http.ResponseWriter, r *http.Request) {
 // @Success 200 {object} types.ApiResponse{data=[]types.APISlotResponse}
 // @Failure 400 {object} types.ApiResponse
 // @Router /api/v1/epoch/{epoch}/slots [get]
-func ApiEpochSlots(w http.ResponseWriter, r *http.Request) {
+func ApiEpochSlots(c *gin.Context) {
+	w := c.Writer
+	r := c.Request
 	w.Header().Set("Content-Type", "application/json")
 	vars := mux.Vars(r)
 
@@ -144,7 +155,9 @@ func ApiEpochSlots(w http.ResponseWriter, r *http.Request) {
 // @Success 200 {object} types.ApiResponse{data=types.APISlotResponse}
 // @Failure 400 {object} types.ApiResponse
 // @Router /api/v1/slot/{slotOrHash} [get]
-func ApiSlots(w http.ResponseWriter, r *http.Request) {
+func ApiSlots(c *gin.Context) {
+	w := c.Writer
+	r := c.Request
 	w.Header().Set("Content-Type", "application/json")
 
 	vars := mux.Vars(r)
@@ -241,8 +254,9 @@ func ApiSlots(w http.ResponseWriter, r *http.Request) {
 // @Success 200 {object} types.ApiResponse{data=[]types.APIAttestationResponse}
 // @Failure 400 {object} types.ApiResponse
 // @Router /api/v1/slot/{slot}/attestations [get]
-func ApiSlotAttestations(w http.ResponseWriter, r *http.Request) {
-
+func ApiSlotAttestations(c *gin.Context) {
+	w := c.Writer
+	r := c.Request
 	w.Header().Set("Content-Type", "application/json")
 
 	vars := mux.Vars(r)
@@ -287,7 +301,9 @@ func ApiSlotAttestations(w http.ResponseWriter, r *http.Request) {
 // @Success 200 {object} types.ApiResponse{data=[]types.APIAttesterSlashingResponse}
 // @Failure 400 {object} types.ApiResponse
 // @Router /api/v1/slot/{slot}/attesterslashings [get]
-func ApiSlotAttesterSlashings(w http.ResponseWriter, r *http.Request) {
+func ApiSlotAttesterSlashings(c *gin.Context) {
+	w := c.Writer
+	r := c.Request
 	w.Header().Set("Content-Type", "application/json")
 
 	vars := mux.Vars(r)
@@ -319,7 +335,9 @@ func ApiSlotAttesterSlashings(w http.ResponseWriter, r *http.Request) {
 // @Success 200 {object} types.ApiResponse{[]APIAttestationResponse}
 // @Failure 400 {object} types.ApiResponse
 // @Router /api/v1/slot/{slot}/deposits [get]
-func ApiSlotDeposits(w http.ResponseWriter, r *http.Request) {
+func ApiSlotDeposits(c *gin.Context) {
+	w := c.Writer
+	r := c.Request
 	w.Header().Set("Content-Type", "application/json")
 
 	vars := mux.Vars(r)
@@ -372,8 +390,9 @@ func ApiSlotDeposits(w http.ResponseWriter, r *http.Request) {
 // @Success 200 {object} types.ApiResponse{data=[]types.APIProposerSlashingResponse}
 // @Failure 400 {object} types.ApiResponse
 // @Router /api/v1/slot/{slot}/proposerslashings [get]
-func ApiSlotProposerSlashings(w http.ResponseWriter, r *http.Request) {
-
+func ApiSlotProposerSlashings(c *gin.Context) {
+	w := c.Writer
+	r := c.Request
 	w.Header().Set("Content-Type", "application/json")
 
 	vars := mux.Vars(r)
@@ -404,8 +423,9 @@ func ApiSlotProposerSlashings(w http.ResponseWriter, r *http.Request) {
 // @Success 200 {object} types.ApiResponse{data=[]types.APIVoluntaryExitResponse}
 // @Failure 400 {object} types.ApiResponse
 // @Router /api/v1/slot/{slot}/voluntaryexits [get]
-func ApiSlotVoluntaryExits(w http.ResponseWriter, r *http.Request) {
-
+func ApiSlotVoluntaryExits(c *gin.Context) {
+	w := c.Writer
+	r := c.Request
 	w.Header().Set("Content-Type", "application/json")
 
 	vars := mux.Vars(r)
@@ -436,7 +456,9 @@ func ApiSlotVoluntaryExits(w http.ResponseWriter, r *http.Request) {
 // @Success 200 {object} types.ApiResponse
 // @Failure 400 {object} types.ApiResponse
 // @Router /api/v1/slot/{slot}/withdrawals [get]
-func ApiSlotWithdrawals(w http.ResponseWriter, r *http.Request) {
+func ApiSlotWithdrawals(c *gin.Context) {
+	w := c.Writer
+	r := c.Request
 	w.Header().Set("Content-Type", "application/json")
 	vars := mux.Vars(r)
 
@@ -468,7 +490,9 @@ func ApiSlotWithdrawals(w http.ResponseWriter, r *http.Request) {
 // @Success 200 {object} types.ApiResponse{data=types.APISyncCommitteeResponse}
 // @Failure 400 {object} types.ApiResponse
 // @Router /api/v1/sync_committee/{period} [get]
-func ApiSyncCommittee(w http.ResponseWriter, r *http.Request) {
+func ApiSyncCommittee(c *gin.Context) {
+	w := c.Writer
+	r := c.Request
 	w.Header().Set("Content-Type", "application/json")
 
 	vars := mux.Vars(r)
@@ -612,8 +636,9 @@ func sendOKResponse(j *json.Encoder, route string, data []interface{}) {
 // @Success 200 {object} types.ApiResponse{data=[]types.ApiValidatorPerformanceResponse}
 // @Failure 400 {object} types.ApiResponse
 // @Router /api/v1/validator/leaderboard [get]
-func ApiValidatorLeaderboard(w http.ResponseWriter, r *http.Request) {
-
+func ApiValidatorLeaderboard(c *gin.Context) {
+	w := c.Writer
+	r := c.Request
 	w.Header().Set("Content-Type", "application/json")
 
 	rows, err := db.ReaderDb.Query(`
@@ -645,7 +670,9 @@ func ApiValidatorLeaderboard(w http.ResponseWriter, r *http.Request) {
 // @Success 200 {object} types.ApiResponse{data=[]types.ApiValidatorDepositsResponse}
 // @Failure 400 {object} types.ApiResponse
 // @Router /api/v1/validator/{indexOrPubkey}/deposits [get]
-func ApiValidatorDeposits(w http.ResponseWriter, r *http.Request) {
+func ApiValidatorDeposits(c *gin.Context) {
+	w := c.Writer
+	r := c.Request
 	w.Header().Set("Content-Type", "application/json")
 
 	vars := mux.Vars(r)
@@ -679,8 +706,9 @@ func ApiValidatorDeposits(w http.ResponseWriter, r *http.Request) {
 // @Success 200 {object} types.ApiResponse{[]types.ApiValidatorAttestationsResponse}
 // @Failure 400 {object} types.ApiResponse
 // @Router /api/v1/validator/{indexOrPubkey}/attestations [get]
-func ApiValidatorAttestations(w http.ResponseWriter, r *http.Request) {
-
+func ApiValidatorAttestations(c *gin.Context) {
+	w := c.Writer
+	r := c.Request
 	w.Header().Set("Content-Type", "application/json")
 
 	j := json.NewEncoder(w)
@@ -748,8 +776,9 @@ func ApiValidatorAttestations(w http.ResponseWriter, r *http.Request) {
 // @Success 200 {object} types.ApiResponse{data=[]types.ApiValidatorProposalsResponse}
 // @Failure 400 {object} types.ApiResponse
 // @Router /api/v1/validator/{indexOrPubkey}/proposals [get]
-func ApiValidatorProposals(w http.ResponseWriter, r *http.Request) {
-
+func ApiValidatorProposals(c *gin.Context) {
+	w := c.Writer
+	r := c.Request
 	w.Header().Set("Content-Type", "application/json")
 
 	vars := mux.Vars(r)
@@ -836,8 +865,9 @@ func ApiValidatorProposals(w http.ResponseWriter, r *http.Request) {
 // @Success 200 {object} types.ApiResponse{data=[]types.ApiValidatorIncomeHistoryResponse}
 // @Failure 400 {object} types.ApiResponse
 // @Router /api/v1/validator/{indexOrPubkey}/incomedetailhistory [get]
-func ApiValidatorIncomeDetailsHistory(w http.ResponseWriter, r *http.Request) {
-
+func ApiValidatorIncomeDetailsHistory(c *gin.Context) {
+	w := c.Writer
+	r := c.Request
 	w.Header().Set("Content-Type", "application/json")
 
 	j := json.NewEncoder(w)
@@ -915,7 +945,9 @@ func ApiValidatorIncomeDetailsHistory(w http.ResponseWriter, r *http.Request) {
 // @Success 200 {object} types.ApiResponse{data=[]types.ApiValidatorWithdrawalResponse}
 // @Failure 400 {object} types.ApiResponse
 // @Router /api/v1/validator/{indexOrPubkey}/withdrawals [get]
-func ApiValidatorWithdrawals(w http.ResponseWriter, r *http.Request) {
+func ApiValidatorWithdrawals(c *gin.Context) {
+	w := c.Writer
+	r := c.Request
 	w.Header().Set("Content-Type", "application/json")
 
 	vars := mux.Vars(r)
@@ -987,8 +1019,9 @@ func ApiValidatorWithdrawals(w http.ResponseWriter, r *http.Request) {
 // @Success 200 {object} types.ApiResponse{data=[]types.ApiValidatorBalanceHistoryResponse}
 // @Failure 400 {object} types.ApiResponse
 // @Router /api/v1/validator/{indexOrPubkey}/balancehistory [get]
-func ApiValidatorBalanceHistory(w http.ResponseWriter, r *http.Request) {
-
+func ApiValidatorBalanceHistory(c *gin.Context) {
+	w := c.Writer
+	r := c.Request
 	w.Header().Set("Content-Type", "application/json")
 
 	j := json.NewEncoder(w)
@@ -1096,8 +1129,9 @@ func getBalanceHistoryQueryParameters(q url.Values) (uint64, uint64, error) {
 // @Success 200 {object} types.ApiResponse{data=[]types.ApiValidatorPerformanceResponse}
 // @Failure 400 {object} types.ApiResponse
 // @Router /api/v1/validator/{indexOrPubkey}/performance [get]
-func ApiValidatorPerformance(w http.ResponseWriter, r *http.Request) {
-
+func ApiValidatorPerformance(c *gin.Context) {
+	w := c.Writer
+	r := c.Request
 	w.Header().Set("Content-Type", "application/json")
 
 	vars := mux.Vars(r)
@@ -1172,8 +1206,9 @@ func ApiValidatorPerformance(w http.ResponseWriter, r *http.Request) {
 // @Success 200 {object} types.ApiResponse
 // @Failure 400 {object} types.ApiResponse
 // @Router /api/v1/validator/{indexOrPubkey}/attestationeffectiveness [get]
-func ApiValidatorAttestationEffectiveness(w http.ResponseWriter, r *http.Request) {
-
+func ApiValidatorAttestationEffectiveness(c *gin.Context) {
+	w := c.Writer
+	r := c.Request
 	w.Header().Set("Content-Type", "application/json")
 
 	j := json.NewEncoder(w)
@@ -1214,8 +1249,9 @@ func ApiValidatorAttestationEffectiveness(w http.ResponseWriter, r *http.Request
 // @Success 200 {object} types.ApiResponse
 // @Failure 400 {object} types.ApiResponse
 // @Router /api/v1/validator/{indexOrPubkey}/attestationefficiency [get]
-func ApiValidatorAttestationEfficiency(w http.ResponseWriter, r *http.Request) {
-
+func ApiValidatorAttestationEfficiency(c *gin.Context) {
+	w := c.Writer
+	r := c.Request
 	w.Header().Set("Content-Type", "application/json")
 
 	j := json.NewEncoder(w)
@@ -1268,7 +1304,9 @@ func validatorEffectiveness(epoch uint64, indices []uint64) ([]*types.ValidatorE
 // @Success 200 {object} types.ApiResponse{data=[]types.ApiValidatorExecutionPerformanceResponse}
 // @Failure 400 {object} types.ApiResponse
 // @Router /api/v1/validator/{indexOrPubkey}/execution/performance [get]
-func ApiValidatorExecutionPerformance(w http.ResponseWriter, r *http.Request) {
+func ApiValidatorExecutionPerformance(c *gin.Context) {
+	w := c.Writer
+	r := c.Request
 	w.Header().Set("Content-Type", "application/json")
 
 	j := json.NewEncoder(w)
@@ -1300,7 +1338,9 @@ func ApiValidatorExecutionPerformance(w http.ResponseWriter, r *http.Request) {
 // @Success 200 {object} types.ApiResponse{data=[]types.APIValidatorResponse}
 // @Failure 400 {object} types.ApiResponse
 // @Router /api/v1/validator/{indexOrPubkey} [get]
-func ApiValidatorGet(w http.ResponseWriter, r *http.Request) {
+func ApiValidatorGet(c *gin.Context) {
+	w := c.Writer
+	r := c.Request
 	apiValidator(w, r)
 }
 
@@ -1312,7 +1352,9 @@ func ApiValidatorGet(w http.ResponseWriter, r *http.Request) {
 // @Success 200 {object} types.ApiResponse{data=[]types.APIValidatorResponse}
 // @Failure 400 {object} types.ApiResponse
 // @Router /api/v1/validator/{indexOrPubkey} [post]
-func ApiValidatorPost(w http.ResponseWriter, r *http.Request) {
+func ApiValidatorPost(c *gin.Context) {
+	w := c.Writer
+	r := c.Request
 	apiValidator(w, r)
 }
 
@@ -1427,7 +1469,9 @@ type ApiValidatorResponse struct {
 // @Success 200 {object} types.ApiResponse{data=[]types.ApiValidatorDailyStatsResponse}
 // @Failure 400 {object} types.ApiResponse
 // @Router /api/v1/validator/stats/{index} [get]
-func ApiValidatorDailyStats(w http.ResponseWriter, r *http.Request) {
+func ApiValidatorDailyStats(c *gin.Context) {
+	w := c.Writer
+	r := c.Request
 	w.Header().Set("Content-Type", "application/json")
 
 	vars := mux.Vars(r)
@@ -1529,8 +1573,9 @@ func ApiValidatorDailyStats(w http.ResponseWriter, r *http.Request) {
 // @Success 200 {object} types.ApiResponse{data=[]types.ApiValidatorEth1Response}
 // @Failure 400 {object} types.ApiResponse
 // @Router /api/v1/validator/eth1/{eth1address} [get]
-func ApiValidatorByEth1Address(w http.ResponseWriter, r *http.Request) {
-
+func ApiValidatorByEth1Address(c *gin.Context) {
+	w := c.Writer
+	r := c.Request
 	w.Header().Set("Content-Type", "application/json")
 	q := r.URL.Query()
 	limitQuery := q.Get("limit")
@@ -1612,7 +1657,9 @@ func getUserPremium(r *http.Request) PremiumUser {
 // @Success 200 {object} types.ApiResponse{data=[]types.ApiWithdrawalCredentialsResponse}
 // @Failure 400 {object} types.ApiResponse
 // @Router /api/v1/validator/withdrawalCredentials/{withdrawalCredentialsOrEth1address} [get]
-func ApiWithdrawalCredentialsValidators(w http.ResponseWriter, r *http.Request) {
+func ApiWithdrawalCredentialsValidators(c *gin.Context) {
+	w := c.Writer
+	r := c.Request
 	w.Header().Set("Content-Type", "application/json")
 
 	vars := mux.Vars(r)
@@ -1828,7 +1875,9 @@ func parseApiValidatorParamToPubkeys(origParam string, limit int) (pubkeys pq.By
 // @Success 200 {object} types.ApiResponse{data=types.ApiValidatorQueueResponse}
 // @Failure 400 {object} types.ApiResponse
 // @Router /api/v1/validators/queue [get]
-func ApiValidatorQueue(w http.ResponseWriter, r *http.Request) {
+func ApiValidatorQueue(c *gin.Context) {
+	w := c.Writer
+	r := c.Request
 	w.Header().Set("Content-Type", "application/json")
 
 	rows, err := db.ReaderDb.Query("SELECT e.validatorscount, q.entering_validators_count as beaconchain_entering, q.exiting_validators_count as beaconchain_exiting FROM  epochs e, queue q ORDER BY e.epoch DESC, q.ts DESC LIMIT 1 ")
@@ -1839,4 +1888,759 @@ func ApiValidatorQueue(w http.ResponseWriter, r *http.Request) {
 	defer rows.Close()
 
 	returnQueryResults(rows, w, r)
+}
+
+// ApiRocketpoolStats godoc
+// @Summary Get global rocketpool network statistics
+// @Tags Rocketpool
+// @Produce  json
+// @Success 200 {object} types.ApiResponse{data=types.APIRocketpoolStatsResponse}
+// @Failure 400 {object} types.ApiResponse
+// @Router /api/v1/rocketpool/stats [get]
+func ApiRocketpoolStats(c *gin.Context) {
+	w := c.Writer
+	r := c.Request
+	w.Header().Set("Content-Type", "application/json")
+
+	j := json.NewEncoder(w)
+
+	stats, err := getRocketpoolStats()
+
+	if err != nil {
+		sendErrorResponse(w, r.URL.String(), "could not parse db results")
+		return
+	}
+
+	sendOKResponse(j, r.URL.String(), stats)
+}
+
+// ApiRocketpoolValidators godoc
+// @Summary Get rocketpool specific data for given validators
+// @Tags Rocketpool
+// @Param  indexOrPubkey path string true "Up to 100 validator indicesOrPubkeys, comma separated"
+// @Produce  json
+// @Success 200 {object} types.ApiResponse{data=types.ApiRocketpoolValidatorResponse}
+// @Failure 400 {object} types.ApiResponse
+// @Router /api/v1/rocketpool/validator/{indexOrPubkey} [get]
+func ApiRocketpoolValidators(c *gin.Context) {
+	w := c.Writer
+	r := c.Request
+	w.Header().Set("Content-Type", "application/json")
+
+	j := json.NewEncoder(w)
+	vars := mux.Vars(r)
+	maxValidators := getUserPremium(r).MaxValidators
+
+	queryIndices, err := parseApiValidatorParamToIndices(vars["indexOrPubkey"], maxValidators)
+	if err != nil {
+		sendErrorResponse(w, r.URL.String(), err.Error())
+		return
+	}
+
+	stats, err := getRocketpoolValidators(queryIndices)
+
+	if err != nil {
+		sendErrorResponse(w, r.URL.String(), "could not parse db results")
+		return
+	}
+
+	sendOKResponse(j, r.URL.String(), stats)
+}
+
+// ApiEthStoreDay godoc
+// @Summary Get ETH.STORE reference rate for a specified beaconchain-day or the latest day
+// @Tags ETH.STORE
+// @Description ETH.STORE represents the average financial return validators on the Ethereum network have achieved in a 24-hour period.
+// @Description For each 24-hour period the datapoint is denoted by the number of days that have passed since genesis for that period (= beaconchain-day)
+// @Description See https://github.com/gobitfly/eth.store for further information.
+// @Produce json
+// @Param day path string true "The beaconchain-day (periods of <(24 * 60 * 60) // SlotsPerEpoch // SecondsPerSlot> epochs) to get the the ETH.STORE for. Must be a number or the string 'latest'."
+// @Success 200 {object} types.ApiResponse
+// @Failure 400 {object} types.ApiResponse
+// @Router /api/v1/ethstore/{day} [get]
+func ApiEthStoreDay(c *gin.Context) {
+	w := c.Writer
+	r := c.Request
+	w.Header().Set("Content-Type", "application/json")
+
+	var err error
+	var rows *sql.Rows
+	query := `
+		SELECT 
+			day, 
+			effective_balances_sum_wei, 
+			start_balances_sum_wei, 
+			end_balances_sum_wei, 
+			deposits_sum_wei, 
+			tx_fees_sum_wei, 
+			consensus_rewards_sum_wei,
+			total_rewards_wei,
+			apr,
+			(select avg(apr) from eth_store_stats as e1 where e1.validator = -1 AND e1.day > e.day - 7 AND e1.day <= e.day) as avgapr7d,
+			(select avg(consensus_rewards_sum_wei) from eth_store_stats as e1 where e1.validator = -1 AND e1.day > e.day - 7 AND e1.day <= e.day) as avgconsensus_rewards7d_wei,
+			(select avg(tx_fees_sum_wei) from eth_store_stats as e1 where e1.validator = -1 AND e1.day > e.day - 7 AND e1.day <= e.day) as avgtx_fees7d_wei,
+			(select avg(apr) from eth_store_stats as e2 where e2.validator = -1 AND e2.day > e.day - 31 AND e2.day <= e.day) as avgapr31d,
+			(select avg(consensus_rewards_sum_wei) from eth_store_stats as e2 where e2.validator = -1 AND e2.day > e.day - 31 AND e2.day <= e.day) as avgconsensus_rewards31d_wei,
+			(select avg(tx_fees_sum_wei) from eth_store_stats as e2 where e2.validator = -1 AND e2.day > e.day - 31 AND e2.day <= e.day) as avgtx_fees31d_wei
+		FROM eth_store_stats e
+		WHERE validator = -1 `
+
+	vars := mux.Vars(r)
+	if vars["day"] == "latest" {
+		rows, err = db.ReaderDb.Query(query + ` ORDER BY day DESC LIMIT 1;`)
+	} else {
+		day, e := strconv.ParseInt(vars["day"], 10, 64)
+		if e != nil {
+			sendErrorResponse(w, r.URL.String(), "invalid day provided")
+			return
+		}
+		rows, err = db.ReaderDb.Query(query+` AND day = $1;`, day)
+	}
+
+	if err != nil {
+		logger.Errorf("error retrieving eth.store data: %v", err)
+		sendErrorResponse(w, r.URL.String(), "could not retrieve db results")
+		return
+	}
+	defer rows.Close()
+
+	addDayTime := func(dataEntryMap map[string]interface{}) error {
+		day, ok := dataEntryMap["day"].(int64)
+		if !ok {
+			return fmt.Errorf("error type asserting day as an int")
+		} else {
+			dataEntryMap["day_start"] = utils.DayToTime(day)
+			dataEntryMap["day_end"] = utils.DayToTime(day + 1)
+		}
+		return nil
+	}
+
+	returnQueryResults(rows, w, r, addDayTime)
+}
+
+/*
+Combined validator get, performance, attestation efficency, sync committee statistics, epoch, historic epoch and rpl
+Not public documented
+*/
+func ApiDashboard(c *gin.Context) {
+	w := c.Writer
+	r := c.Request
+	w.Header().Set("Content-Type", "application/json")
+
+	j := json.NewEncoder(w)
+
+	body, err := ioutil.ReadAll(r.Body)
+	if err != nil {
+		logger.Errorf("error reading body | err: %v", err)
+		sendErrorResponse(w, r.URL.String(), "could not read body")
+		return
+	}
+
+	var getValidators bool = true
+	var parsedBody types.DashboardRequest
+	err = json.Unmarshal(body, &parsedBody)
+	if err != nil {
+		utils.LogError(err, "unmarshal json body error", 0)
+		getValidators = false
+	}
+
+	maxValidators := getUserPremium(r).MaxValidators
+
+	epoch := services.LatestEpoch()
+
+	g, _ := errgroup.WithContext(context.Background())
+	var validatorsData []interface{}
+	var validatorEffectivenessData []*types.ValidatorEffectiveness
+	var rocketpoolData []interface{}
+	var rocketpoolStats []interface{}
+	var currentEpochData []interface{}
+	var executionPerformance []types.ExecutionPerformanceResponse
+	var olderEpochData []interface{}
+	var currentSyncCommittee []interface{}
+	var nextSyncCommittee []interface{}
+	var syncCommitteeStats *SyncCommitteesStats
+
+	if getValidators {
+		queryIndices, err := parseApiValidatorParamToIndices(parsedBody.IndicesOrPubKey, maxValidators)
+		if err != nil {
+			sendErrorResponse(w, r.URL.String(), err.Error())
+			return
+		}
+
+		if len(queryIndices) > 0 {
+			g.Go(func() error {
+				validatorsData, err = validators(queryIndices)
+				return err
+			})
+
+			g.Go(func() error {
+				validatorEffectivenessData, err = validatorEffectiveness(epoch-1, queryIndices)
+				return err
+			})
+
+			g.Go(func() error {
+				rocketpoolData, err = getRocketpoolValidators(queryIndices)
+				return err
+			})
+
+			g.Go(func() error {
+				executionPerformance, err = getValidatorExecutionPerformance(queryIndices)
+				return err
+			})
+
+			g.Go(func() error {
+				period := utils.SyncPeriodOfEpoch(epoch)
+				currentSyncCommittee, err = getSyncCommitteeFor(queryIndices, period)
+				return err
+			})
+
+			g.Go(func() error {
+				period := utils.SyncPeriodOfEpoch(epoch) + 1
+				nextSyncCommittee, err = getSyncCommitteeFor(queryIndices, period)
+				return err
+			})
+
+			g.Go(func() error {
+				syncCommitteeStats, err = getSyncCommitteeStatistics(queryIndices, epoch)
+				return err
+			})
+		}
+	}
+
+	g.Go(func() error {
+		currentEpochData, err = getEpoch(int64(epoch) - 1)
+		return err
+	})
+
+	g.Go(func() error {
+		olderEpochData, err = getEpoch(int64(epoch) - 10)
+		return err
+	})
+
+	g.Go(func() error {
+		rocketpoolStats, err = getRocketpoolStats()
+		return err
+	})
+
+	err = g.Wait()
+	if err != nil {
+		logger.Errorf("dashboard %v", err)
+		sendErrorResponse(w, r.URL.String(), err.Error())
+		return
+	}
+
+	data := &DashboardResponse{
+		Validators:           validatorsData,
+		Effectiveness:        validatorEffectivenessData,
+		CurrentEpoch:         currentEpochData,
+		OlderEpoch:           olderEpochData,
+		Rocketpool:           rocketpoolData,
+		RocketpoolStats:      rocketpoolStats,
+		ExecutionPerformance: executionPerformance,
+		CurrentSyncCommittee: currentSyncCommittee,
+		NextSyncCommittee:    nextSyncCommittee,
+		SyncCommitteesStats:  *syncCommitteeStats,
+	}
+
+	sendOKResponse(j, r.URL.String(), []interface{}{data})
+}
+
+// TODO Replace app code to work with new income balance dashboard
+// Meanwhile keep old code from Feb 2021 to be app compatible
+func APIDashboardDataBalance(c *gin.Context) {
+	w := c.Writer
+	r := c.Request
+	currency := GetCurrency(r)
+
+	w.Header().Set("Content-Type", "application/json")
+
+	q := r.URL.Query()
+
+	queryValidators, err := parseValidatorsFromQueryString(q.Get("validators"), 100)
+	if err != nil {
+		logger.WithError(err).WithField("route", r.URL.String()).Error("error parsing validators from query string")
+		http.Error(w, "Invalid query", 400)
+		return
+	}
+	if err != nil {
+		http.Error(w, "Invalid query", 400)
+		return
+	}
+	if len(queryValidators) < 1 {
+		http.Error(w, "Invalid query", 400)
+		return
+	}
+	// queryValidatorsArr := pq.Array(queryValidators)
+
+	// get data from one week before latest epoch
+	latestEpoch := services.LatestEpoch()
+	oneWeekEpochs := uint64(3600 * 24 * 7 / float64(utils.Config.Chain.Config.SecondsPerSlot*utils.Config.Chain.Config.SlotsPerEpoch))
+	queryOffsetEpoch := uint64(0)
+	if latestEpoch > oneWeekEpochs {
+		queryOffsetEpoch = latestEpoch - oneWeekEpochs
+	}
+
+	if len(queryValidators) == 0 {
+		sendErrorResponse(w, r.URL.String(), "no or invalid validator indicies provided")
+	}
+
+	balances, err := db.MongodbClient.GetValidatorBalanceHistory(queryValidators, latestEpoch-queryOffsetEpoch, latestEpoch)
+	if err != nil {
+		logger.WithError(err).WithField("route", r.URL.String()).Errorf("error retrieving validator balance history")
+		http.Error(w, "Internal server error", http.StatusServiceUnavailable)
+		return
+	}
+	dataMap := make(map[uint64]*types.DashboardValidatorBalanceHistory)
+
+	for _, balanceHistory := range balances {
+		for _, history := range balanceHistory {
+			if dataMap[history.Epoch] == nil {
+				dataMap[history.Epoch] = &types.DashboardValidatorBalanceHistory{}
+			}
+			dataMap[history.Epoch].Balance += history.Balance
+			dataMap[history.Epoch].EffectiveBalance += history.EffectiveBalance
+			dataMap[history.Epoch].Epoch = history.Epoch
+			dataMap[history.Epoch].ValidatorCount++
+		}
+	}
+
+	data := make([]*types.DashboardValidatorBalanceHistory, 0, len(dataMap))
+
+	for _, e := range dataMap {
+		data = append(data, e)
+	}
+
+	sort.Slice(data, func(i, j int) bool {
+		return data[i].Epoch < data[j].Epoch
+	})
+
+	balanceHistoryChartData := make([][4]float64, len(data))
+	for i, item := range data {
+		balanceHistoryChartData[i][0] = float64(utils.EpochToTime(item.Epoch).Unix() * 1000)
+		balanceHistoryChartData[i][1] = item.ValidatorCount
+		balanceHistoryChartData[i][2] = float64(item.Balance) / 1e9 * price.GetEthPrice(currency)
+		balanceHistoryChartData[i][3] = float64(item.EffectiveBalance) / 1e9 * price.GetEthPrice(currency)
+	}
+
+	err = json.NewEncoder(w).Encode(balanceHistoryChartData)
+	if err != nil {
+		logger.WithError(err).WithField("route", r.URL.String()).Error("error enconding json response")
+		http.Error(w, "Internal server error", http.StatusServiceUnavailable)
+		return
+	}
+}
+
+type Cached struct {
+	Data interface{}
+	Ts   int64
+}
+
+var rocketpoolStats atomic.Value
+
+func getRocketpoolStats() ([]interface{}, error) {
+	cached := rocketpoolStats.Load()
+	if cached != nil {
+		cachedObj := cached.(*Cached)
+		if cachedObj.Ts+10*60 > time.Now().Unix() { // cache for 30min
+			return cachedObj.Data.([]interface{}), nil
+		}
+	}
+	rows, err := db.ReaderDb.Query(`
+		SELECT claim_interval_time, claim_interval_time_start, 
+		current_node_demand, TRUNC(current_node_fee::decimal, 10)::float as current_node_fee, effective_rpl_staked,
+		node_operator_rewards, TRUNC(reth_exchange_rate::decimal, 10)::float as reth_exchange_rate, reth_supply, rpl_price, total_eth_balance, total_eth_staking, 
+		minipool_count, node_count, odao_member_count, 
+		(SELECT TRUNC(((1 - (min(history.reth_exchange_rate) / max(history.reth_exchange_rate))) * 52.14)::decimal , 10) FROM (SELECT ts, reth_exchange_rate FROM rocketpool_network_stats LIMIT 168) history)::float as reth_apr  
+		from rocketpool_network_stats ORDER BY ts desc LIMIT 1;
+			`)
+
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+	data, err := utils.SqlRowsToJSON(rows)
+	if err != nil {
+		return nil, err
+	}
+
+	rocketpoolStats.Store(&Cached{
+		Data: data,
+		Ts:   time.Now().Unix(),
+	})
+
+	return data, nil
+}
+
+func getRocketpoolValidators(queryIndices []uint64) ([]interface{}, error) {
+	rows, err := db.ReaderDb.Query(`
+		SELECT
+			rplm.node_address      AS node_address,
+			rplm.address           AS minipool_address,
+			TRUNC(rplm.node_fee::decimal, 10)::float          AS minipool_node_fee,
+			rplm.deposit_type      AS minipool_deposit_type,
+			rplm.status            AS minipool_status,
+			rplm.penalty_count     AS penalty_count,
+			rplm.status_time       AS minipool_status_time,
+			rpln.timezone_location AS node_timezone_location,
+			rpln.rpl_stake         AS node_rpl_stake,
+			rpln.max_rpl_stake     AS node_max_rpl_stake,
+			rpln.min_rpl_stake     AS node_min_rpl_stake,
+			rpln.rpl_cumulative_rewards     AS rpl_cumulative_rewards,
+			validators.validatorindex AS index,
+			rpln.claimed_smoothing_pool     AS claimed_smoothing_pool,
+			rpln.unclaimed_smoothing_pool   AS unclaimed_smoothing_pool,
+			rpln.unclaimed_rpl_rewards      AS unclaimed_rpl_rewards,
+			COALESCE(rpln.smoothing_pool_opted_in, false)    AS smoothing_pool_opted_in,
+			COALESCE(rpln.deposit_credit, 0) as node_deposit_credit,
+			COALESCE(rplm.node_deposit_balance, 0) AS node_deposit_balance,
+			COALESCE(rplm.node_refund_balance, 0) AS node_refund_balance,
+			COALESCE(rplm.user_deposit_balance, 0) AS user_deposit_balance,
+			COALESCE(rplm.is_vacant, false) AS is_vacant,
+			COALESCE(rpln.effective_rpl_stake, 0) as effective_rpl_stake,
+			COALESCE(rplm.version, 0) AS version
+		FROM rocketpool_minipools rplm 
+		LEFT JOIN validators validators ON rplm.pubkey = validators.pubkey 
+		LEFT JOIN rocketpool_nodes rpln ON rplm.node_address = rpln.address
+		WHERE validatorindex = ANY($1)`, pq.Array(queryIndices))
+
+	if err != nil {
+		return nil, fmt.Errorf("error querying rocketpool minipools: %w", err)
+	}
+	defer rows.Close()
+
+	return utils.SqlRowsToJSON(rows)
+}
+
+func validators(queryIndices []uint64) ([]interface{}, error) {
+	rows, err := db.ReaderDb.Query(`
+	SELECT 
+		validators.validatorindex,
+		pubkey,
+		withdrawableepoch,
+		withdrawalcredentials,
+		slashed,
+		activationeligibilityepoch,
+		activationepoch,
+		exitepoch,
+		lastattestationslot,
+		status,
+		COALESCE(validator_names.name, '') AS name,
+		COALESCE(validator_performance.cl_performance_1d, 0) AS performance1d,
+		COALESCE(validator_performance.cl_performance_7d, 0) AS performance7d,
+		COALESCE(validator_performance.cl_performance_31d, 0) AS performance31d,
+		COALESCE(validator_performance.cl_performance_365d, 0) AS performance365d,
+		COALESCE(validator_performance.cl_performance_total, 0) AS performanceTotal,
+		rank7d,
+		w.total as total_withdrawals
+	FROM validators
+	LEFT JOIN validator_performance ON validators.validatorindex = validator_performance.validatorindex
+	LEFT JOIN validator_names ON validator_names.publickey = validators.pubkey
+	LEFT JOIN (
+		SELECT validatorindex as index, COALESCE(sum(amount), 0) as total 
+		FROM blocks_withdrawals w
+		INNER JOIN blocks b ON b.blockroot = w.block_root AND status = '1'
+		WHERE validatorindex = ANY($1)
+		GROUP BY validatorindex
+	) as w ON w.index = validators.validatorindex
+	WHERE validators.validatorindex = ANY($1)
+	ORDER BY validators.validatorindex`, pq.Array(queryIndices))
+	if err != nil {
+		return nil, fmt.Errorf("error querying validators: %w", err)
+	}
+	defer rows.Close()
+
+	data, err := utils.SqlRowsToJSON(rows)
+	if err != nil {
+		return nil, fmt.Errorf("error converting validators to json: %w", err)
+	}
+
+	balances, err := db.MongodbClient.GetValidatorBalanceHistory(queryIndices, services.LatestEpoch(), services.LatestEpoch())
+	if err != nil {
+		return nil, fmt.Errorf("error getting validator balances from bigtable: %w", err)
+	}
+
+	currentDayIncome, err := db.GetCurrentDayClIncome(queryIndices)
+	if err != nil {
+		return nil, err
+	}
+
+	for balanceIndex, balance := range balances {
+		if len(balance) == 0 {
+			continue
+		}
+		for _, entry := range data {
+			eMap, ok := entry.(map[string]interface{})
+			if !ok {
+				logger.Errorf("error converting validator data to map[string]interface{}")
+				continue
+			}
+
+			validatorIndex, ok := eMap["validatorindex"].(int64)
+
+			if !ok {
+				logger.Errorf("error converting validatorindex to int64")
+				continue
+			}
+			if int64(balanceIndex) == validatorIndex {
+				eMap["balance"] = balance[0].Balance
+				eMap["effectivebalance"] = balance[0].EffectiveBalance
+				eMap["performance1d"] = currentDayIncome[uint64(validatorIndex)]
+				eMap["performancetotal"] = eMap["performancetotal"].(int64) + currentDayIncome[uint64(validatorIndex)]
+			}
+		}
+	}
+
+	return data, nil
+}
+
+type SyncCommitteesStats struct {
+	ExpectedSlots     uint64 `json:"expectedSlots"`
+	ParticipatedSlots uint64 `json:"participatedSlots"`
+	MissedSlots       uint64 `json:"missedSlots"`
+}
+
+func getEpoch(epoch int64) ([]interface{}, error) {
+	rows, err := db.ReaderDb.Query(`SELECT attestationscount, attesterslashingscount, averagevalidatorbalance,
+	blockscount, depositscount, eligibleether, epoch, finalized, TRUNC(globalparticipationrate::decimal, 10)::float as globalparticipationrate, proposerslashingscount,
+	totalvalidatorbalance, validatorscount, voluntaryexitscount, votedether
+	FROM epochs WHERE epoch = $1`, epoch)
+	if err != nil {
+		return nil, fmt.Errorf("error querying epoch: %w", err)
+	}
+	defer rows.Close()
+	return utils.SqlRowsToJSON(rows)
+}
+
+func getSyncCommitteeFor(validators []uint64, period uint64) ([]interface{}, error) {
+	rows, err := db.ReaderDb.Query(
+		`SELECT 
+			period, 
+			period*$2 AS start_epoch, 
+			(period+1)*$2-1 AS end_epoch, 
+			ARRAY_AGG(validatorindex ORDER BY committeeindex) AS validators 
+		FROM sync_committees 
+		WHERE period = $1 AND validatorindex = ANY($3)
+		GROUP BY period`,
+		period,
+		utils.Config.Chain.Config.EpochsPerSyncCommitteePeriod,
+		pq.Array(validators),
+	)
+	if err != nil {
+		return nil, fmt.Errorf("could not get sync committee for period %d: %w", period, err)
+	}
+	defer rows.Close()
+	return utils.SqlRowsToJSON(rows)
+}
+
+func getSyncCommitteeStatistics(validators []uint64, epoch uint64) (*SyncCommitteesStats, error) {
+	r := SyncCommitteesStats{}
+
+	if epoch < utils.Config.Chain.Config.AltairForkEpoch {
+		// no sync committee duties before altair fork
+		return &r, nil
+	}
+
+	if len(validators) == 0 {
+		// no validators mean no sync committee duties either
+		return &r, nil
+	}
+
+	var err error
+
+	r.ExpectedSlots, err = getExpectedSyncCommitteeSlots(validators, epoch)
+	if err != nil {
+		return nil, err
+	}
+
+	r.ParticipatedSlots, r.MissedSlots, err = getSyncCommitteeSlotsStatistics(validators, epoch)
+	if err != nil {
+		return nil, err
+	}
+
+	return &r, nil
+}
+
+func getExpectedSyncCommitteeSlots(validators []uint64, epoch uint64) (expectedSlots uint64, err error) {
+	if epoch < utils.Config.Chain.Config.AltairForkEpoch {
+		// no sync committee duties before altair fork
+		return 0, nil
+	}
+
+	// retrieve activation and exit epochs from database per validator
+	type ValidatorInfo struct {
+		Id                         int64  `db:"validatorindex"`
+		ActivationEpoch            uint64 `db:"activationepoch"`
+		ExitEpoch                  uint64 `db:"exitepoch"`
+		FirstPossibleSyncCommittee uint64 // calculated
+		LastPossibleSyncCommittee  uint64 // calculated
+	}
+
+	var validatorsInfoFromDb = []ValidatorInfo{}
+	query, args, err := sqlx.In(`SELECT validatorindex, activationepoch, exitepoch FROM validators WHERE validatorindex IN (?) ORDER BY validatorindex ASC`, validators)
+	if err != nil {
+		return 0, err
+	}
+
+	err = db.ReaderDb.Select(&validatorsInfoFromDb, db.ReaderDb.Rebind(query), args...)
+	if err != nil {
+		return 0, err
+	}
+
+	// only check validators that are/have been active and that did not exit before altair
+	const noEpoch = uint64(9223372036854775807)
+	var validatorsInfo = make([]ValidatorInfo, 0, len(validatorsInfoFromDb))
+	for _, v := range validatorsInfoFromDb {
+		if v.ActivationEpoch != noEpoch && v.ActivationEpoch < epoch && (v.ExitEpoch == noEpoch || v.ExitEpoch >= utils.Config.Chain.Config.AltairForkEpoch) {
+			validatorsInfo = append(validatorsInfo, v)
+		}
+	}
+
+	if len(validatorsInfo) == 0 {
+		// no validators relevant for sync duties
+		return 0, nil
+	}
+
+	// we need all related and unique timeframes (activation and exit sync period) for all validators
+	uniquePeriods := make(map[uint64]bool)
+	for i := range validatorsInfo {
+		// first epoch (activation epoch or Altair if Altair was later as there were no sync committees pre Altair)
+		firstSyncEpoch := validatorsInfo[i].ActivationEpoch
+		if validatorsInfo[i].ActivationEpoch < utils.Config.Chain.Config.AltairForkEpoch {
+			firstSyncEpoch = utils.Config.Chain.Config.AltairForkEpoch
+		}
+		validatorsInfo[i].FirstPossibleSyncCommittee = utils.SyncPeriodOfEpoch(firstSyncEpoch)
+		uniquePeriods[validatorsInfo[i].FirstPossibleSyncCommittee] = true
+
+		// last epoch (exit epoch or current epoch if not exited yet)
+		lastSyncEpoch := epoch
+		if validatorsInfo[i].ExitEpoch != noEpoch && validatorsInfo[i].ExitEpoch <= epoch {
+			lastSyncEpoch = validatorsInfo[i].ExitEpoch
+		}
+		validatorsInfo[i].LastPossibleSyncCommittee = utils.SyncPeriodOfEpoch(lastSyncEpoch)
+		uniquePeriods[validatorsInfo[i].LastPossibleSyncCommittee] = true
+	}
+
+	// transform map to slice; this will be used to query sync_committees_count_per_validator
+	periodSlice := make([]uint64, 0, len(uniquePeriods))
+	for period := range uniquePeriods {
+		periodSlice = append(periodSlice, period)
+	}
+
+	// get aggregated count for all relevant committees from sync_committees_count_per_validator
+	var countStatistics []struct {
+		Period     uint64  `db:"period"`
+		CountSoFar float64 `db:"count_so_far"`
+	}
+
+	query, args, errs := sqlx.In(`SELECT period, count_so_far FROM sync_committees_count_per_validator WHERE period IN (?) ORDER BY period ASC`, periodSlice)
+	if errs != nil {
+		return 0, errs
+	}
+	err = db.ReaderDb.Select(&countStatistics, db.ReaderDb.Rebind(query), args...)
+	if err != nil {
+		return 0, err
+	}
+	if len(countStatistics) != len(periodSlice) {
+		return 0, fmt.Errorf("unable to retrieve all sync committee count statistics, required %v entries but got %v entries (epoch: %v)", len(periodSlice), len(countStatistics), epoch)
+	}
+
+	// transform query result to map for easy access
+	periodInfoMap := make(map[uint64]float64)
+	for _, pl := range countStatistics {
+		periodInfoMap[pl.Period] = pl.CountSoFar
+	}
+
+	// calculate expected committies for every single validator and aggregate them
+	expectedCommitties := 0.0
+	for _, vi := range validatorsInfo {
+		expectedCommitties += periodInfoMap[vi.LastPossibleSyncCommittee] - periodInfoMap[vi.FirstPossibleSyncCommittee]
+	}
+
+	// transform committees to slots
+	expectedSlots = uint64(expectedCommitties * float64(utils.Config.Chain.Config.EpochsPerSyncCommitteePeriod*utils.Config.Chain.Config.SlotsPerEpoch))
+
+	return expectedSlots, nil
+}
+
+func getSyncCommitteeSlotsStatistics(validators []uint64, epoch uint64) (participatedSlots uint64, missedSlots uint64, err error) {
+	// collect aggregated sync committee stats from validator_stats table for all validators
+	var syncStats struct {
+		Participated int64 `db:"participated"`
+		Missed       int64 `db:"missed"`
+	}
+	query, args, err := sqlx.In(`SELECT COALESCE(SUM(participated_sync), 0) AS participated, COALESCE(SUM(missed_sync), 0) AS missed FROM validator_stats WHERE validatorindex IN (?)`, validators)
+	if err != nil {
+		return 0, 0, err
+	}
+	err = db.ReaderDb.Get(&syncStats, db.ReaderDb.Rebind(query), args...)
+	if err != nil {
+		return 0, 0, err
+	}
+
+	participatedSlots = uint64(syncStats.Participated)
+	missedSlots = uint64(syncStats.Missed)
+
+	// validator_stats is updated only once a day, everything missing has to be collected from bigtable (which is slower than validator_stats)
+	// check when the last update to validator_stats was
+	var lastExportedDay uint64
+	err = db.WriterDb.Get(&lastExportedDay, "SELECT COALESCE(max(day), 0) FROM validator_stats_status WHERE status")
+	if err != nil {
+		return 0, 0, err
+	}
+	epochsPerDay := utils.EpochsPerDay()
+	lastExportedEpoch := ((lastExportedDay + 1) * epochsPerDay) - 1
+
+	if lastExportedEpoch < epoch {
+		// a sync committee takes abouth 27h so in the span of a day we migh have a maximum of two different sync committees (one being unfinished)
+		// to lower the bigtable workload, we only check for validators that are querried AND in the current or the last sync committee
+		periods := []int64{int64(utils.SyncPeriodOfEpoch(epoch))}
+		if periods[0] > 0 {
+			periods = append(periods, periods[0]-1)
+		}
+
+		var validatorsInSyncCommittees struct {
+			Validators pq.Int64Array `db:"validators"`
+		}
+		query, args, err := sqlx.In(`SELECT COALESCE(ARRAY_AGG(validatorindex), '{}') AS validators FROM sync_committees WHERE period IN(?) AND validatorindex IN(?)`, periods, validators)
+		if err != nil {
+			return 0, 0, err
+		}
+		err = db.ReaderDb.Get(&validatorsInSyncCommittees, db.ReaderDb.Rebind(query), args...)
+		if err != nil {
+			return 0, 0, err
+		}
+
+		if len(validatorsInSyncCommittees.Validators) > 0 {
+			// get and add up2date sync committee statistics from bigtable
+			vs := []uint64{}
+			for _, v := range validatorsInSyncCommittees.Validators {
+				vs = append(vs, uint64(v))
+			}
+
+			m, err := db.MongodbClient.GetValidatorSyncDutiesStatistics(vs, lastExportedEpoch, epoch)
+			if err != nil {
+				return 0, 0, err
+			}
+
+			for _, v := range m {
+				participatedSlots += v.ParticipatedSync
+				missedSlots += v.MissedSync
+			}
+		}
+	}
+
+	return participatedSlots, missedSlots, nil
+}
+
+type DashboardResponse struct {
+	Validators           interface{}                          `json:"validators"`
+	Effectiveness        interface{}                          `json:"effectiveness"`
+	CurrentEpoch         interface{}                          `json:"currentEpoch"`
+	OlderEpoch           interface{}                          `json:"olderEpoch"`
+	Rocketpool           interface{}                          `json:"rocketpool_validators"`
+	RocketpoolStats      interface{}                          `json:"rocketpool_network_stats"`
+	ExecutionPerformance []types.ExecutionPerformanceResponse `json:"execution_performance"`
+	CurrentSyncCommittee interface{}                          `json:"current_sync_committee"`
+	NextSyncCommittee    interface{}                          `json:"next_sync_committee"`
+	SyncCommitteesStats  SyncCommitteesStats                  `json:"sync_committees_stats"`
 }

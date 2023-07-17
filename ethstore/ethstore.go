@@ -21,9 +21,6 @@ import (
 	gethTypes "github.com/ethereum/go-ethereum/core/types"
 	gethRPC "github.com/ethereum/go-ethereum/rpc"
 	lru "github.com/hashicorp/golang-lru"
-	"github.com/prysmaticlabs/prysm/v3/beacon-chain/core/signing"
-	"github.com/prysmaticlabs/prysm/v3/contracts/deposit"
-	ethpb "github.com/prysmaticlabs/prysm/v3/proto/prysm/v1alpha1"
 	"github.com/rs/zerolog"
 	"github.com/shopspring/decimal"
 	"golang.org/x/sync/errgroup"
@@ -241,29 +238,29 @@ func Calculate(ctx context.Context, bnAddress, elAddress, dayStr string, concurr
 		return nil, nil, err
 	}
 
-	genesisForkVersionIf, exists := apiSpec["GENESIS_FORK_VERSION"]
-	if !exists {
-		return nil, nil, fmt.Errorf("undefined GENESIS_FORK_VERSION in spec")
-	}
-	genesisForkVersion, ok := genesisForkVersionIf.(phase0.Version)
-	if !ok {
-		return nil, nil, fmt.Errorf("invalid format of GENESIS_FORK_VERSION in spec")
-	}
+	// genesisForkVersionIf, exists := apiSpec["GENESIS_FORK_VERSION"]
+	// if !exists {
+	// 	return nil, nil, fmt.Errorf("undefined GENESIS_FORK_VERSION in spec")
+	// }
+	// genesisForkVersion, ok := genesisForkVersionIf.(phase0.Version)
+	// if !ok {
+	// 	return nil, nil, fmt.Errorf("invalid format of GENESIS_FORK_VERSION in spec")
+	// }
 
-	domainDepositIf, exists := apiSpec["DOMAIN_DEPOSIT"]
-	if !exists {
-		return nil, nil, fmt.Errorf("undefined DOMAIN_DEPOSIT in spec")
-	}
-	domainDeposit, ok := domainDepositIf.(phase0.DomainType)
-	if !ok {
-		return nil, nil, fmt.Errorf("invalid format of DOMAIN_DEPOSIT in spec")
-	}
+	// domainDepositIf, exists := apiSpec["DOMAIN_DEPOSIT"]
+	// if !exists {
+	// 	return nil, nil, fmt.Errorf("undefined DOMAIN_DEPOSIT in spec")
+	// }
+	// domainDeposit, ok := domainDepositIf.(phase0.DomainType)
+	// if !ok {
+	// 	return nil, nil, fmt.Errorf("invalid format of DOMAIN_DEPOSIT in spec")
+	// }
 
-	genesisValidatorsRoot := [32]byte{}
-	depositDomainComputed, err := signing.ComputeDomain(domainDeposit, genesisForkVersion[:], genesisValidatorsRoot[:])
-	if err != nil {
-		return nil, nil, err
-	}
+	// genesisValidatorsRoot := [32]byte{}
+	// depositDomainComputed, err := signing.ComputeDomain(domainDeposit, genesisForkVersion[:], genesisValidatorsRoot[:])
+	// if err != nil {
+	// 	return nil, nil, err
+	// }
 
 	slotsPerEpochIf, exists := apiSpec["SLOTS_PER_EPOCH"]
 	if !exists {
@@ -479,19 +476,19 @@ func Calculate(ctx context.Context, bnAddress, elAddress, dayStr string, concurr
 					// only calculate for validators that have been active the whole day
 					continue
 				}
-				msg := &ethpb.Deposit_Data{
-					PublicKey:             d.Data.PublicKey[:],
-					WithdrawalCredentials: d.Data.WithdrawalCredentials,
-					Amount:                uint64(d.Data.Amount),
-					Signature:             d.Data.Signature[:],
-				}
-				err := deposit.VerifyDepositSignature(msg, depositDomainComputed)
-				if err != nil {
-					if GetDebugLevel() > 0 {
-						log.Printf("DEBUG eth.store: invalid deposit signature in block %d: %v", i, err)
-					}
-					continue
-				}
+				// msg := &ethpb.Deposit_Data{
+				// 	PublicKey:             d.Data.PublicKey[:],
+				// 	WithdrawalCredentials: d.Data.WithdrawalCredentials,
+				// 	Amount:                uint64(d.Data.Amount),
+				// 	Signature:             d.Data.Signature[:],
+				// }
+				// err := deposit.VerifyDepositSignature(msg, depositDomainComputed)
+				// if err != nil {
+				// 	if GetDebugLevel() > 0 {
+				// 		log.Printf("DEBUG eth.store: invalid deposit signature in block %d: %v", i, err)
+				// 	}
+				// 	continue
+				// }
 				if GetDebugLevel() > 0 {
 					log.Printf("DEBUG eth.store: extra deposit at block %d from %v: %#x: %v\n", i, v.Index, d.Data.PublicKey, d.Data.Amount)
 				}

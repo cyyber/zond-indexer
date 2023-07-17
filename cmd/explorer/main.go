@@ -2,42 +2,42 @@ package main
 
 import (
 	"encoding/gob"
+	"strings"
 	"time"
 
 	"github.com/Prajjawalk/zond-indexer/cache"
 	"github.com/Prajjawalk/zond-indexer/db"
 	"github.com/Prajjawalk/zond-indexer/handlers"
-	"github.com/gorilla/mux"
-	"github.com/phyber/negroni-gzip/gzip"
-	"github.com/urfave/negroni"
-	"github.com/zesik/proxyaddr"
+	"github.com/Prajjawalk/zond-indexer/metrics"
+	"github.com/Prajjawalk/zond-indexer/version"
+	"github.com/gin-gonic/gin"
+	ginSwagger "github.com/swaggo/gin-swagger"
 
 	// ethclients "eth2-exporter/ethClients"
 	"github.com/Prajjawalk/zond-indexer/exporter"
 	// "github.com/Prajjawalk/zond-indexer/handlers"
-	"github.com/Prajjawalk/zond-indexer/metrics"
+
 	"github.com/Prajjawalk/zond-indexer/rpc"
 	"github.com/Prajjawalk/zond-indexer/services"
-	httpSwagger "github.com/swaggo/http-swagger"
 
 	// "github.com/Prajjawalk/zond-indexer/static"
 	"flag"
 	"fmt"
 	"math/big"
-	"net/http"
-	"strings"
 	"sync"
 
 	"github.com/Prajjawalk/zond-indexer/types"
 	"github.com/Prajjawalk/zond-indexer/utils"
-	"github.com/Prajjawalk/zond-indexer/version"
 
 	"github.com/sirupsen/logrus"
 
-	// _ "eth2-exporter/docs"
+	"net/http"
 	_ "net/http/pprof"
 
+	_ "github.com/Prajjawalk/zond-indexer/docs"
+
 	_ "github.com/jackc/pgx/v4/stdlib"
+	swaggerfiles "github.com/swaggo/files"
 )
 
 // func initStripe(http *mux.Router) error {
@@ -225,7 +225,7 @@ func main() {
 		var rpcClient rpc.Client
 
 		chainID := new(big.Int).SetUint64(utils.Config.Chain.Config.DepositChainID)
-		if utils.Config.Indexer.Node.Type == "lighthouse" {
+		if utils.Config.Indexer.Node.Type == "prysm" {
 			rpcClient, err = rpc.NewLighthouseClient("http://"+cfg.Indexer.Node.Host+":"+cfg.Indexer.Node.Port, chainID)
 			if err != nil {
 				utils.LogFatal(err, "new explorer lighthouse client error", 0)
@@ -261,61 +261,61 @@ func main() {
 
 	if cfg.Frontend.Enabled {
 
-		if cfg.Frontend.OnlyAPI {
-			services.ReportStatus("api", "Running", nil)
-		} else {
-			services.ReportStatus("frontend", "Running", nil)
-		}
+		// if cfg.Frontend.OnlyAPI {
+		// 	services.ReportStatus("api", "Running", nil)
+		// } else {
+		// 	services.ReportStatus("frontend", "Running", nil)
+		// }
 
-		router := mux.NewRouter()
+		router := gin.Default()
 
-		apiV1Router := router.PathPrefix("/api/v1").Subrouter()
-		router.PathPrefix("/api/v1/docs/").Handler(httpSwagger.WrapHandler)
-		apiV1Router.HandleFunc("/epoch/{epoch}", handlers.ApiEpoch).Methods("GET", "OPTIONS")
+		apiV1Router := router.Group("/api/v1")
+		router.GET("/api/v1/docs/*any", ginSwagger.WrapHandler(swaggerfiles.Handler))
+		apiV1Router.GET("/epoch/{epoch}", handlers.ApiEpoch)
 
-		apiV1Router.HandleFunc("/epoch/{epoch}/blocks", handlers.ApiEpochSlots).Methods("GET", "OPTIONS")
-		apiV1Router.HandleFunc("/epoch/{epoch}/slots", handlers.ApiEpochSlots).Methods("GET", "OPTIONS")
-		apiV1Router.HandleFunc("/slot/{slotOrHash}", handlers.ApiSlots).Methods("GET", "OPTIONS")
-		apiV1Router.HandleFunc("/slot/{slot}/attestations", handlers.ApiSlotAttestations).Methods("GET", "OPTIONS")
-		apiV1Router.HandleFunc("/slot/{slot}/deposits", handlers.ApiSlotDeposits).Methods("GET", "OPTIONS")
-		apiV1Router.HandleFunc("/slot/{slot}/attesterslashings", handlers.ApiSlotAttesterSlashings).Methods("GET", "OPTIONS")
-		apiV1Router.HandleFunc("/slot/{slot}/proposerslashings", handlers.ApiSlotProposerSlashings).Methods("GET", "OPTIONS")
-		apiV1Router.HandleFunc("/slot/{slot}/voluntaryexits", handlers.ApiSlotVoluntaryExits).Methods("GET", "OPTIONS")
-		apiV1Router.HandleFunc("/slot/{slot}/withdrawals", handlers.ApiSlotWithdrawals).Methods("GET", "OPTIONS")
+		apiV1Router.GET("/epoch/:epoch/blocks", handlers.ApiEpochSlots)
+		apiV1Router.GET("/epoch/:epoch/slots", handlers.ApiEpochSlots)
+		apiV1Router.GET("/slot/:slot", handlers.ApiSlots)
+		apiV1Router.GET("/slot/:slot/attestations", handlers.ApiSlotAttestations)
+		apiV1Router.GET("/slot/:slot/deposits", handlers.ApiSlotDeposits)
+		apiV1Router.GET("/slot/:slot/attesterslashings", handlers.ApiSlotAttesterSlashings)
+		apiV1Router.GET("/slot/:slot/proposerslashings", handlers.ApiSlotProposerSlashings)
+		apiV1Router.GET("/slot/:slot/voluntaryexits", handlers.ApiSlotVoluntaryExits)
+		apiV1Router.GET("/slot/:slot/withdrawals", handlers.ApiSlotWithdrawals)
 
-		apiV1Router.HandleFunc("/sync_committee/{period}", handlers.ApiSyncCommittee).Methods("GET", "OPTIONS")
-		apiV1Router.HandleFunc("/eth1deposit/{txhash}", handlers.ApiEth1Deposit).Methods("GET", "OPTIONS")
-		apiV1Router.HandleFunc("/validator/leaderboard", handlers.ApiValidatorLeaderboard).Methods("GET", "OPTIONS")
-		apiV1Router.HandleFunc("/validator/{indexOrPubkey}", handlers.ApiValidatorGet).Methods("GET", "OPTIONS")
-		apiV1Router.HandleFunc("/validator/{indexOrPubkey}", handlers.ApiValidatorPost).Methods("POST", "OPTIONS")
-		apiV1Router.HandleFunc("/validator/{indexOrPubkey}/withdrawals", handlers.ApiValidatorWithdrawals).Methods("GET", "OPTIONS")
-		apiV1Router.HandleFunc("/validator/{indexOrPubkey}/balancehistory", handlers.ApiValidatorBalanceHistory).Methods("GET", "OPTIONS")
-		apiV1Router.HandleFunc("/validator/{indexOrPubkey}/incomedetailhistory", handlers.ApiValidatorIncomeDetailsHistory).Methods("GET", "OPTIONS")
-		apiV1Router.HandleFunc("/validator/{indexOrPubkey}/performance", handlers.ApiValidatorPerformance).Methods("GET", "OPTIONS")
-		apiV1Router.HandleFunc("/validator/{indexOrPubkey}/execution/performance", handlers.ApiValidatorExecutionPerformance).Methods("GET", "OPTIONS")
-		apiV1Router.HandleFunc("/validator/{indexOrPubkey}/attestations", handlers.ApiValidatorAttestations).Methods("GET", "OPTIONS")
-		apiV1Router.HandleFunc("/validator/{indexOrPubkey}/proposals", handlers.ApiValidatorProposals).Methods("GET", "OPTIONS")
-		apiV1Router.HandleFunc("/validator/{indexOrPubkey}/deposits", handlers.ApiValidatorDeposits).Methods("GET", "OPTIONS")
-		apiV1Router.HandleFunc("/validator/{indexOrPubkey}/attestationefficiency", handlers.ApiValidatorAttestationEfficiency).Methods("GET", "OPTIONS")
-		apiV1Router.HandleFunc("/validator/{indexOrPubkey}/attestationeffectiveness", handlers.ApiValidatorAttestationEffectiveness).Methods("GET", "OPTIONS")
-		apiV1Router.HandleFunc("/validator/stats/{index}", handlers.ApiValidatorDailyStats).Methods("GET", "OPTIONS")
-		apiV1Router.HandleFunc("/validator/eth1/{address}", handlers.ApiValidatorByEth1Address).Methods("GET", "OPTIONS")
-		apiV1Router.HandleFunc("/validator/withdrawalCredentials/{withdrawalCredentialsOrEth1address}", handlers.ApiWithdrawalCredentialsValidators).Methods("GET", "OPTIONS")
-		apiV1Router.HandleFunc("/validators/queue", handlers.ApiValidatorQueue).Methods("GET", "OPTIONS")
+		apiV1Router.GET("/sync_committee/{period}", handlers.ApiSyncCommittee)
+		apiV1Router.GET("/eth1deposit/{txhash}", handlers.ApiEth1Deposit)
+		apiV1Router.GET("/validator/leaderboard", handlers.ApiValidatorLeaderboard)
+		apiV1Router.GET("/validator/{indexOrPubkey}", handlers.ApiValidatorGet)
+		apiV1Router.POST("/validator/{indexOrPubkey}", handlers.ApiValidatorPost)
+		apiV1Router.GET("/validator/{indexOrPubkey}/withdrawals", handlers.ApiValidatorWithdrawals)
+		apiV1Router.GET("/validator/{indexOrPubkey}/balancehistory", handlers.ApiValidatorBalanceHistory)
+		apiV1Router.GET("/validator/{indexOrPubkey}/incomedetailhistory", handlers.ApiValidatorIncomeDetailsHistory)
+		apiV1Router.GET("/validator/{indexOrPubkey}/performance", handlers.ApiValidatorPerformance)
+		apiV1Router.GET("/validator/{indexOrPubkey}/execution/performance", handlers.ApiValidatorExecutionPerformance)
+		apiV1Router.GET("/validator/{indexOrPubkey}/attestations", handlers.ApiValidatorAttestations)
+		apiV1Router.GET("/validator/{indexOrPubkey}/proposals", handlers.ApiValidatorProposals)
+		apiV1Router.GET("/validator/{indexOrPubkey}/deposits", handlers.ApiValidatorDeposits)
+		apiV1Router.GET("/validator/{indexOrPubkey}/attestationefficiency", handlers.ApiValidatorAttestationEfficiency)
+		apiV1Router.GET("/validator/{indexOrPubkey}/attestationeffectiveness", handlers.ApiValidatorAttestationEffectiveness)
+		apiV1Router.GET("/validator/stats/{index}", handlers.ApiValidatorDailyStats)
+		apiV1Router.GET("/validator/eth1/{address}", handlers.ApiValidatorByEth1Address)
+		apiV1Router.GET("/validator/withdrawalCredentials/{withdrawalCredentialsOrEth1address}", handlers.ApiWithdrawalCredentialsValidators)
+		apiV1Router.GET("/validators/queue", handlers.ApiValidatorQueue)
 		// 	apiV1Router.HandleFunc("/chart/{chart}", handlers.ApiChart).Methods("GET", "OPTIONS")
 		// 	apiV1Router.HandleFunc("/user/token", handlers.APIGetToken).Methods("POST", "OPTIONS")
-		// 	apiV1Router.HandleFunc("/dashboard/data/allbalances", handlers.DashboardDataBalanceCombined).Methods("GET", "OPTIONS") // consensus & execution
-		// 	apiV1Router.HandleFunc("/dashboard/data/balances", handlers.DashboardDataBalance).Methods("GET", "OPTIONS")            // new app versions
-		// 	apiV1Router.HandleFunc("/dashboard/data/balance", handlers.APIDashboardDataBalance).Methods("GET", "OPTIONS")          // old app versions
-		// 	apiV1Router.HandleFunc("/dashboard/data/proposals", handlers.DashboardDataProposals).Methods("GET", "OPTIONS")
+		apiV1Router.GET("/dashboard/data/allbalances", handlers.DashboardDataBalanceCombined) // consensus & execution
+		apiV1Router.GET("/dashboard/data/balances", handlers.DashboardDataBalance)            // new app versions
+		apiV1Router.GET("/dashboard/data/balance", handlers.APIDashboardDataBalance)          // old app versions
+		apiV1Router.GET("/dashboard/data/proposals", handlers.DashboardDataProposals)
 		// 	apiV1Router.HandleFunc("/stripe/webhook", handlers.StripeWebhook).Methods("POST")
 		// 	apiV1Router.HandleFunc("/stats/{apiKey}/{machine}", handlers.ClientStatsPostOld).Methods("POST", "OPTIONS")
 		// 	apiV1Router.HandleFunc("/stats/{apiKey}", handlers.ClientStatsPostOld).Methods("POST", "OPTIONS")
 		// 	apiV1Router.HandleFunc("/client/metrics", handlers.ClientStatsPostNew).Methods("POST", "OPTIONS")
-		// 	apiV1Router.HandleFunc("/app/dashboard", handlers.ApiDashboard).Methods("POST", "OPTIONS")
-		// 	apiV1Router.HandleFunc("/rocketpool/stats", handlers.ApiRocketpoolStats).Methods("GET", "OPTIONS")
-		// 	apiV1Router.HandleFunc("/rocketpool/validator/{indexOrPubkey}", handlers.ApiRocketpoolValidators).Methods("GET", "OPTIONS")
-		// 	apiV1Router.HandleFunc("/ethstore/{day}", handlers.ApiEthStoreDay).Methods("GET", "OPTIONS")
+		apiV1Router.POST("/app/dashboard", handlers.ApiDashboard)
+		apiV1Router.GET("/rocketpool/stats", handlers.ApiRocketpoolStats)
+		apiV1Router.GET("/rocketpool/validator/{indexOrPubkey}", handlers.ApiRocketpoolValidators)
+		apiV1Router.GET("/ethstore/{day}", handlers.ApiEthStoreDay)
 
 		// 	apiV1Router.HandleFunc("/execution/gasnow", handlers.ApiEth1GasNowData).Methods("GET", "OPTIONS")
 		// 	// query params: token
@@ -642,7 +642,7 @@ func main() {
 		// 	// l := negroni.NewLogger()
 		// 	// l.SetFormat(`{{.Request.Header.Get "X-Forwarded-For"}}, {{.Request.RemoteAddr}} | {{.StartTime}} | {{.Status}} | {{.Duration}} | {{.Hostname}} | {{.Method}} {{.Path}}{{if ne .Request.URL.RawQuery ""}}?{{.Request.URL.RawQuery}}{{end}}`)
 
-		n := negroni.New(negroni.NewRecovery()) //, l
+		// n := negroni.New(negroni.NewRecovery()) //, l
 
 		// 	// Customize the logging middleware to include a proper module entry for the frontend
 		// 	//frontendLogger := negronilogrus.NewMiddleware()
@@ -655,14 +655,6 @@ func main() {
 		// 	//	return entry.WithField("module", "frontend")
 		// 	//}
 		// 	//n.Use(frontendLogger)
-
-		n.Use(gzip.Gzip(gzip.DefaultCompression))
-
-		pa := &proxyaddr.ProxyAddr{}
-		pa.Init(proxyaddr.CIDRLoopback)
-		n.Use(pa)
-
-		n.UseHandler(utils.SessionStore.SCS.LoadAndSave(router))
 
 		if utils.Config.Frontend.HttpWriteTimeout == 0 {
 			utils.Config.Frontend.HttpIdleTimeout = time.Second * 15
@@ -678,7 +670,7 @@ func main() {
 			WriteTimeout: utils.Config.Frontend.HttpWriteTimeout,
 			ReadTimeout:  utils.Config.Frontend.HttpReadTimeout,
 			IdleTimeout:  utils.Config.Frontend.HttpIdleTimeout,
-			Handler:      n,
+			Handler:      router,
 		}
 
 		logrus.Printf("http server listening on %v", srv.Addr)

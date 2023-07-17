@@ -158,13 +158,13 @@ func (client *ErigonClient) GetBlock(number int64) (*types.Eth1Block, *types.Get
 	for _, tx := range txs {
 
 		var from []byte
-		msg, err := tx.AsMessage(geth_types.NewLondonSigner(tx.ChainId()), big.NewInt(1))
+		msg, err := geth_types.Sender(geth_types.NewLondonSigner(tx.ChainId()), tx)
 		if err != nil {
 			from, _ = hex.DecodeString("abababababababababababababababababababab")
 
 			logrus.Errorf("error converting tx %v to msg: %v", tx.Hash(), err)
 		} else {
-			from = msg.From().Bytes()
+			from = msg.Bytes()
 		}
 
 		pbTx := &types.Eth1Transaction{

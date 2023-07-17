@@ -1,6 +1,7 @@
 package utils
 
 import (
+	"bytes"
 	"database/sql"
 	"encoding/base64"
 	"encoding/hex"
@@ -9,6 +10,7 @@ import (
 	"html/template"
 	"math"
 	"math/big"
+	"net/url"
 	"strconv"
 	"strings"
 	"time"
@@ -296,10 +298,10 @@ func FormatInclusionDelay(inclusionSlot uint64, delay int64) template.HTML {
 }
 
 // FormatSlotToTimestamp will return the time elapsed since blockSlot
-// func FormatSlotToTimestamp(blockSlot uint64) template.HTML {
-// 	time := SlotToTime(blockSlot)
-// 	return FormatTimestamp(time.Unix())
-// }
+func FormatSlotToTimestamp(blockSlot uint64) template.HTML {
+	time := SlotToTime(blockSlot)
+	return FormatTimestamp(time.Unix())
+}
 
 // FormatBlockStatus will return an html status for a block.
 func FormatBlockStatus(status uint64) template.HTML {
@@ -443,25 +445,25 @@ func FormatEtherValue(symbol string, ethPrice *big.Float, currentPrice template.
 }
 
 // FormatGraffiti will return the graffiti formated as html
-// func FormatGraffiti(graffiti []byte) template.HTML {
-// 	s := strings.Map(fixUtf, string(bytes.Trim(graffiti, "\x00")))
-// 	h := template.HTMLEscapeString(s)
-// 	if len(s) <= 6 {
-// 		return template.HTML(fmt.Sprintf(`<span aria-graffiti="%#x">%s</span>`, graffiti, h))
-// 	}
-// 	if len(h) >= 8 {
-// 		return template.HTML(fmt.Sprintf(`<span aria-graffiti="%#x" data-toggle="tooltip" data-placement="top" title="%s">%s...</span>`, graffiti, h, h[:8]))
-// 	}
-// 	return template.HTML(fmt.Sprintf(`<span aria-graffiti="%#x" data-toggle="tooltip" data-placement="top" title="%s">%s...</span>`, graffiti, h, h[:]))
-// }
+func FormatGraffiti(graffiti []byte) template.HTML {
+	s := strings.Map(fixUtf, string(bytes.Trim(graffiti, "\x00")))
+	h := template.HTMLEscapeString(s)
+	if len(s) <= 6 {
+		return template.HTML(fmt.Sprintf(`<span aria-graffiti="%#x">%s</span>`, graffiti, h))
+	}
+	if len(h) >= 8 {
+		return template.HTML(fmt.Sprintf(`<span aria-graffiti="%#x" data-toggle="tooltip" data-placement="top" title="%s">%s...</span>`, graffiti, h, h[:8]))
+	}
+	return template.HTML(fmt.Sprintf(`<span aria-graffiti="%#x" data-toggle="tooltip" data-placement="top" title="%s">%s...</span>`, graffiti, h, h[:]))
+}
 
 // FormatGraffitiAsLink will return the graffiti formated as html-link
-// func FormatGraffitiAsLink(graffiti []byte) template.HTML {
-// 	s := strings.Map(fixUtf, string(bytes.Trim(graffiti, "\x00")))
-// 	h := template.HTMLEscapeString(s)
-// 	u := url.QueryEscape(s)
-// 	return template.HTML(fmt.Sprintf("<span aria-graffiti=\"%#x\"><a href=\"/slots?q=%s\">%s</a></span>", graffiti, u, h))
-// }
+func FormatGraffitiAsLink(graffiti []byte) template.HTML {
+	s := strings.Map(fixUtf, string(bytes.Trim(graffiti, "\x00")))
+	h := template.HTMLEscapeString(s)
+	u := url.QueryEscape(s)
+	return template.HTML(fmt.Sprintf("<span aria-graffiti=\"%#x\"><a href=\"/slots?q=%s\">%s</a></span>", graffiti, u, h))
+}
 
 // FormatHash will return a hash formated as html
 // hash is required, trunc is optional.
@@ -1004,10 +1006,10 @@ func FormatYesNo(yes bool) template.HTML {
 	return `<span class="badge badge-pill bg-warning text-white" style="font-size: 12px; font-weight: 500;">No</span>`
 }
 
-// func FormatValidatorName(name string) template.HTML {
-// 	str := strings.Map(fixUtf, template.HTMLEscapeString(name))
-// 	return template.HTML(fmt.Sprintf("<b><abbr title=\"This name has been set by the owner of this validator. Pool tags have been set by the beaconcha.in team.\">%s</abbr></b>", str))
-// }
+func FormatValidatorName(name string) template.HTML {
+	str := strings.Map(fixUtf, template.HTMLEscapeString(name))
+	return template.HTML(fmt.Sprintf("<b><abbr title=\"This name has been set by the owner of this validator. Pool tags have been set by the beaconcha.in team.\">%s</abbr></b>", str))
+}
 
 func FormatAttestationInclusionEffectiveness(eff float64) template.HTML {
 	tooltipText := "The attestation inclusion effectiveness should be 80% or higher to minimize reward penalties."
@@ -1068,10 +1070,10 @@ func DerefString(str *string) string {
 }
 
 // TrLang returns translated text based on language tag and text id
-// func TrLang(lang string, key string) template.HTML {
-// 	I18n := getLocaliser()
-// 	return template.HTML(I18n.Tr(lang, key))
-// }
+func TrLang(lang string, key string) template.HTML {
+	I18n := getLocaliser()
+	return template.HTML(I18n.Tr(lang, key))
+}
 
 func KFormatterEthPrice(price uint64) template.HTML {
 	if price > 999 {
@@ -1099,13 +1101,13 @@ func FormatFloat(num float64, precision int) string {
 	return string(r)
 }
 
-// func FormatNotificationChannel(ch types.NotificationChannel) template.HTML {
-// 	label, ok := types.NotificationChannelLabels[ch]
-// 	if !ok {
-// 		return ""
-// 	}
-// 	return label
-// }
+func FormatNotificationChannel(ch types.NotificationChannel) template.HTML {
+	label, ok := types.NotificationChannelLabels[ch]
+	if !ok {
+		return ""
+	}
+	return label
+}
 
 func FormatBlockReward(blockNumber int64) template.HTML {
 	var reward *big.Int
@@ -1121,66 +1123,66 @@ func FormatBlockReward(blockNumber int64) template.HTML {
 	return FormatAmount(reward, "Ether", 5)
 }
 
-// func FormatTokenBalance(balance *types.Eth1AddressBalance) template.HTML {
-// 	mul := decimal.NewFromFloat(float64(10)).Pow(decimal.NewFromBigInt(new(big.Int).SetBytes(balance.Metadata.Decimals), 0))
-// 	num := decimal.NewFromBigInt(new(big.Int).SetBytes(balance.Balance), 0)
-// 	p := message.NewPrinter(language.English)
+func FormatTokenBalance(balance *types.Eth1AddressBalance) template.HTML {
+	mul := decimal.NewFromFloat(float64(10)).Pow(decimal.NewFromBigInt(new(big.Int).SetBytes(balance.Metadata.Decimals), 0))
+	num := decimal.NewFromBigInt(new(big.Int).SetBytes(balance.Balance), 0)
+	p := message.NewPrinter(language.English)
 
-// 	priceS := string(balance.Metadata.Price)
-// 	price := decimal.New(0, 0)
-// 	if priceS != "" {
-// 		var err error
-// 		price, err = decimal.NewFromString(priceS)
-// 		if err != nil {
-// 			logger.WithError(err).Errorf("error getting price from string - FormatTokenBalance price: %v", priceS)
-// 		}
-// 	}
-// 	// numPrice := num.Div(mul).Mul(price)
+	priceS := string(balance.Metadata.Price)
+	price := decimal.New(0, 0)
+	if priceS != "" {
+		var err error
+		price, err = decimal.NewFromString(priceS)
+		if err != nil {
+			logger.WithError(err).Errorf("error getting price from string - FormatTokenBalance price: %v", priceS)
+		}
+	}
+	// numPrice := num.Div(mul).Mul(price)
 
-// 	logo := ""
-// 	if len(balance.Metadata.Logo) != 0 {
-// 		logo = fmt.Sprintf(`<img class="mr-1" style="height: 1.2rem;" src="data:image/png;base64, %s">`, base64.StdEncoding.EncodeToString(balance.Metadata.Logo))
-// 	}
-// 	symbolTitle := FormatTokenSymbolTitle(balance.Metadata.Symbol)
-// 	symbol := FormatTokenSymbol(balance.Metadata.Symbol)
-// 	pflt, _ := price.Float64()
-// 	flt, _ := num.Div(mul).Round(5).Float64()
-// 	bflt, _ := price.Mul(num.Div(mul)).Float64()
-// 	return template.HTML(p.Sprintf(`
-// 	<div class="token-balance-col token-name text-truncate d-flex align-items-center justify-content-between flex-wrap">
-// 		<div class="token-icon p-1">
-// 			<a href='/token/0x%x?a=0x%x'>
-// 				<span>%s</span> <span title="%s">%s</span>
-// 			</a>
-// 		</div>
-// 		<div class="token-price-balance p-1">
-// 			<span class="text-muted" style="font-size: 90%%;">$%.2f</span>
-// 		</div>
-// 	</div>
-// 	<div class="token-balance-col token-balance d-flex align-items-center justify-content-between flex-wrap">
-// 		<div class="token-holdings p-1">
-// 			<span class="token-holdings">%s</span>
-// 		</div>
-// 		<div class="token-price p-1">
-// 			<span class="text-muted" style="font-size: 90%%;">@ $%.2f</span>
-// 		</div>
-// 	</div>`, balance.Token, balance.Address, logo, symbolTitle, symbol, bflt, FormatThousandsEnglish(strconv.FormatFloat(flt, 'f', -1, 64)), pflt))
-// }
+	logo := ""
+	if len(balance.Metadata.Logo) != 0 {
+		logo = fmt.Sprintf(`<img class="mr-1" style="height: 1.2rem;" src="data:image/png;base64, %s">`, base64.StdEncoding.EncodeToString(balance.Metadata.Logo))
+	}
+	symbolTitle := FormatTokenSymbolTitle(balance.Metadata.Symbol)
+	symbol := FormatTokenSymbol(balance.Metadata.Symbol)
+	pflt, _ := price.Float64()
+	flt, _ := num.Div(mul).Round(5).Float64()
+	bflt, _ := price.Mul(num.Div(mul)).Float64()
+	return template.HTML(p.Sprintf(`
+	<div class="token-balance-col token-name text-truncate d-flex align-items-center justify-content-between flex-wrap">
+		<div class="token-icon p-1">
+			<a href='/token/0x%x?a=0x%x'>
+				<span>%s</span> <span title="%s">%s</span>
+			</a>
+		</div>
+		<div class="token-price-balance p-1">
+			<span class="text-muted" style="font-size: 90%%;">$%.2f</span>
+		</div>
+	</div>
+	<div class="token-balance-col token-balance d-flex align-items-center justify-content-between flex-wrap">
+		<div class="token-holdings p-1">
+			<span class="token-holdings">%s</span>
+		</div>
+		<div class="token-price p-1">
+			<span class="text-muted" style="font-size: 90%%;">@ $%.2f</span>
+		</div>
+	</div>`, balance.Token, balance.Address, logo, symbolTitle, symbol, bflt, FormatThousandsEnglish(strconv.FormatFloat(flt, 'f', -1, 64)), pflt))
+}
 
-// func FormatAddressEthBalance(balance *types.Eth1AddressBalance) template.HTML {
-// 	e := new(big.Int).SetBytes(balance.Metadata.Decimals)
-// 	d := new(big.Int).Exp(big.NewInt(10), e, nil)
-// 	balWei := new(big.Float).SetInt(new(big.Int).SetBytes(balance.Balance))
-// 	balEth := new(big.Float).Quo(balWei, new(big.Float).SetInt(d))
-// 	p := message.NewPrinter(language.English)
-// 	return template.HTML(p.Sprintf(fmt.Sprintf(`
-// 		<div class="d-flex align-items-center">
-// 			<svg style="width: 1rem; height: 1rem;">
-// 				<use xlink:href="#ethereum-diamond-logo"/>
-// 			</svg>
-// 			<span class="token-holdings">%%.%df Ether</span>
-// 		</div>`, e.Int64()), balEth))
-// }
+func FormatAddressEthBalance(balance *types.Eth1AddressBalance) template.HTML {
+	e := new(big.Int).SetBytes(balance.Metadata.Decimals)
+	d := new(big.Int).Exp(big.NewInt(10), e, nil)
+	balWei := new(big.Float).SetInt(new(big.Int).SetBytes(balance.Balance))
+	balEth := new(big.Float).Quo(balWei, new(big.Float).SetInt(d))
+	p := message.NewPrinter(language.English)
+	return template.HTML(p.Sprintf(fmt.Sprintf(`
+		<div class="d-flex align-items-center">
+			<svg style="width: 1rem; height: 1rem;">
+				<use xlink:href="#ethereum-diamond-logo"/>
+			</svg>
+			<span class="token-holdings">%%.%df Ether</span>
+		</div>`, e.Int64()), balEth))
+}
 
 func FormatTokenValue(balance *types.Eth1AddressBalance) template.HTML {
 	decimals := new(big.Int).SetBytes(balance.Metadata.Decimals)
@@ -1192,13 +1194,13 @@ func FormatTokenValue(balance *types.Eth1AddressBalance) template.HTML {
 	return template.HTML(p.Sprintf("%s", FormatThousandsEnglish(strconv.FormatFloat(f, 'f', -1, 64))))
 }
 
-// func FormatErc20Decimals(balance []byte, metadata *types.ERC20Metadata) decimal.Decimal {
-// 	decimals := new(big.Int).SetBytes(metadata.Decimals)
-// 	mul := decimal.NewFromFloat(float64(10)).Pow(decimal.NewFromBigInt(decimals, 0))
-// 	num := decimal.NewFromBigInt(new(big.Int).SetBytes(balance), 0)
+func FormatErc20Decimals(balance []byte, metadata *types.ERC20Metadata) decimal.Decimal {
+	decimals := new(big.Int).SetBytes(metadata.Decimals)
+	mul := decimal.NewFromFloat(float64(10)).Pow(decimal.NewFromBigInt(decimals, 0))
+	num := decimal.NewFromBigInt(new(big.Int).SetBytes(balance), 0)
 
-// 	return num.DivRound(mul, int32(decimals.Int64()))
-// }
+	return num.DivRound(mul, int32(decimals.Int64()))
+}
 
 func FormatTokenName(balance *types.Eth1AddressBalance) template.HTML {
 	logo := ""
@@ -1210,25 +1212,25 @@ func FormatTokenName(balance *types.Eth1AddressBalance) template.HTML {
 	return template.HTML(fmt.Sprintf(`<a href='/token/0x%x?a=0x%x' title="%s">%s %s</a>`, balance.Token, balance.Address, symbolTitle, logo, symbol))
 }
 
-// func ToBase64(input []byte) string {
-// 	return base64.StdEncoding.EncodeToString(input)
-// }
+func ToBase64(input []byte) string {
+	return base64.StdEncoding.EncodeToString(input)
+}
 
-// // FormatBalance will return a string for a balance
-// func FormatEth1TxStatus(status uint64) template.HTML {
-// 	if status == 1 {
-// 		return template.HTML("<h5 class=\"m-0\"><span class=\"badge badge-success badge-pill align-middle text-white\"><i class=\"fas fa-check-circle\"></i> Success</span></h5>")
-// 	} else {
-// 		return template.HTML("<h5 class=\"m-0\"><span class=\"badge badge-danger badge-pill align-middle text-white\"><i class=\"fas fa-times-circle\"></i> Failed</span></h5>")
-// 	}
-// }
+// FormatBalance will return a string for a balance
+func FormatEth1TxStatus(status uint64) template.HTML {
+	if status == 1 {
+		return template.HTML("<h5 class=\"m-0\"><span class=\"badge badge-success badge-pill align-middle text-white\"><i class=\"fas fa-check-circle\"></i> Success</span></h5>")
+	} else {
+		return template.HTML("<h5 class=\"m-0\"><span class=\"badge badge-danger badge-pill align-middle text-white\"><i class=\"fas fa-times-circle\"></i> Failed</span></h5>")
+	}
+}
 
-// // FormatTimestamp will return a timestamp formated as html. This is supposed to be used together with client-side js
-// func FormatTimestampUInt64(ts uint64) template.HTML {
-// 	return template.HTML(fmt.Sprintf("<span class=\"timestamp\" title=\"%v\" data-toggle=\"tooltip\" data-placement=\"top\" data-timestamp=\"%d\"></span>", time.Unix(int64(ts), 0), ts))
-// }
+// FormatTimestamp will return a timestamp formated as html. This is supposed to be used together with client-side js
+func FormatTimestampUInt64(ts uint64) template.HTML {
+	return template.HTML(fmt.Sprintf("<span class=\"timestamp\" title=\"%v\" data-toggle=\"tooltip\" data-placement=\"top\" data-timestamp=\"%d\"></span>", time.Unix(int64(ts), 0), ts))
+}
 
-// // FormatEth1AddressFull will return the eth1-address formated as html
-// func FormatEth1AddressFull(addr common.Address) template.HTML {
-// 	return FormatAddress(addr.Bytes(), nil, "", false, false, true)
-// }
+// FormatEth1AddressFull will return the eth1-address formated as html
+func FormatEth1AddressFull(addr common.Address) template.HTML {
+	return FormatAddress(addr.Bytes(), nil, "", false, false, true)
+}

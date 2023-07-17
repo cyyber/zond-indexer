@@ -1,0 +1,2453 @@
+{
+    "swagger": "2.0",
+    "info": {
+        "contact": {}
+    },
+    "paths": {
+        "/api/v1/epoch/{epoch}": {
+            "get": {
+                "description": "Returns information for a specified epoch by the epoch number or an epoch tag (can be latest or finalized)",
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "Epoch"
+                ],
+                "summary": "Get epoch by number, latest, finalized",
+                "parameters": [
+                    {
+                        "type": "string",
+                        "description": "Epoch number, the string latest or the string finalized",
+                        "name": "epoch",
+                        "in": "path",
+                        "required": true
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "Success",
+                        "schema": {
+                            "allOf": [
+                                {
+                                    "$ref": "#/definitions/types.ApiResponse"
+                                },
+                                {
+                                    "type": "object",
+                                    "properties": {
+                                        "data": {
+                                            "$ref": "#/definitions/types.APIEpochResponse"
+                                        }
+                                    }
+                                }
+                            ]
+                        }
+                    },
+                    "400": {
+                        "description": "Failure",
+                        "schema": {
+                            "$ref": "#/definitions/types.ApiResponse"
+                        }
+                    },
+                    "500": {
+                        "description": "Server Error",
+                        "schema": {
+                            "$ref": "#/definitions/types.ApiResponse"
+                        }
+                    }
+                }
+            }
+        },
+        "/api/v1/epoch/{epoch}/slots": {
+            "get": {
+                "description": "Returns all slots for a specified epoch",
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "Epoch"
+                ],
+                "summary": "Get epoch blocks by epoch number, latest or finalized",
+                "parameters": [
+                    {
+                        "type": "string",
+                        "description": "Epoch number, the string latest or string finalized",
+                        "name": "epoch",
+                        "in": "path",
+                        "required": true
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "OK",
+                        "schema": {
+                            "allOf": [
+                                {
+                                    "$ref": "#/definitions/types.ApiResponse"
+                                },
+                                {
+                                    "type": "object",
+                                    "properties": {
+                                        "data": {
+                                            "type": "array",
+                                            "items": {
+                                                "$ref": "#/definitions/types.APISlotResponse"
+                                            }
+                                        }
+                                    }
+                                }
+                            ]
+                        }
+                    },
+                    "400": {
+                        "description": "Bad Request",
+                        "schema": {
+                            "$ref": "#/definitions/types.ApiResponse"
+                        }
+                    }
+                }
+            }
+        },
+        "/api/v1/eth1deposit/{txhash}": {
+            "get": {
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "Execution"
+                ],
+                "summary": "Get an eth1 deposit by its eth1 transaction hash",
+                "parameters": [
+                    {
+                        "type": "string",
+                        "description": "Eth1 transaction hash",
+                        "name": "txhash",
+                        "in": "path",
+                        "required": true
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "OK",
+                        "schema": {
+                            "$ref": "#/definitions/types.ApiResponse"
+                        }
+                    },
+                    "400": {
+                        "description": "Bad Request",
+                        "schema": {
+                            "$ref": "#/definitions/types.ApiResponse"
+                        }
+                    }
+                }
+            }
+        },
+        "/api/v1/ethstore/{day}": {
+            "get": {
+                "description": "ETH.STORE represents the average financial return validators on the Ethereum network have achieved in a 24-hour period.\nFor each 24-hour period the datapoint is denoted by the number of days that have passed since genesis for that period (= beaconchain-day)\nSee https://github.com/gobitfly/eth.store for further information.",
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "ETH.STORE"
+                ],
+                "summary": "Get ETH.STORE reference rate for a specified beaconchain-day or the latest day",
+                "parameters": [
+                    {
+                        "type": "string",
+                        "description": "The beaconchain-day (periods of \u003c(24 * 60 * 60) // SlotsPerEpoch // SecondsPerSlot\u003e epochs) to get the the ETH.STORE for. Must be a number or the string 'latest'.",
+                        "name": "day",
+                        "in": "path",
+                        "required": true
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "OK",
+                        "schema": {
+                            "$ref": "#/definitions/types.ApiResponse"
+                        }
+                    },
+                    "400": {
+                        "description": "Bad Request",
+                        "schema": {
+                            "$ref": "#/definitions/types.ApiResponse"
+                        }
+                    }
+                }
+            }
+        },
+        "/api/v1/rocketpool/stats": {
+            "get": {
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "Rocketpool"
+                ],
+                "summary": "Get global rocketpool network statistics",
+                "responses": {
+                    "200": {
+                        "description": "OK",
+                        "schema": {
+                            "allOf": [
+                                {
+                                    "$ref": "#/definitions/types.ApiResponse"
+                                },
+                                {
+                                    "type": "object",
+                                    "properties": {
+                                        "data": {
+                                            "$ref": "#/definitions/types.APIRocketpoolStatsResponse"
+                                        }
+                                    }
+                                }
+                            ]
+                        }
+                    },
+                    "400": {
+                        "description": "Bad Request",
+                        "schema": {
+                            "$ref": "#/definitions/types.ApiResponse"
+                        }
+                    }
+                }
+            }
+        },
+        "/api/v1/rocketpool/validator/{indexOrPubkey}": {
+            "get": {
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "Rocketpool"
+                ],
+                "summary": "Get rocketpool specific data for given validators",
+                "parameters": [
+                    {
+                        "type": "string",
+                        "description": "Up to 100 validator indicesOrPubkeys, comma separated",
+                        "name": "indexOrPubkey",
+                        "in": "path",
+                        "required": true
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "OK",
+                        "schema": {
+                            "allOf": [
+                                {
+                                    "$ref": "#/definitions/types.ApiResponse"
+                                },
+                                {
+                                    "type": "object",
+                                    "properties": {
+                                        "data": {
+                                            "$ref": "#/definitions/types.ApiRocketpoolValidatorResponse"
+                                        }
+                                    }
+                                }
+                            ]
+                        }
+                    },
+                    "400": {
+                        "description": "Bad Request",
+                        "schema": {
+                            "$ref": "#/definitions/types.ApiResponse"
+                        }
+                    }
+                }
+            }
+        },
+        "/api/v1/slot/{slotOrHash}": {
+            "get": {
+                "description": "Returns a slot by its slot number or root hash or the latest slot with string latest",
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "Slot"
+                ],
+                "summary": "Get a slot by its slot number or root hash",
+                "parameters": [
+                    {
+                        "type": "string",
+                        "description": "Slot or root hash or the string latest",
+                        "name": "slotOrHash",
+                        "in": "path",
+                        "required": true
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "OK",
+                        "schema": {
+                            "allOf": [
+                                {
+                                    "$ref": "#/definitions/types.ApiResponse"
+                                },
+                                {
+                                    "type": "object",
+                                    "properties": {
+                                        "data": {
+                                            "$ref": "#/definitions/types.APISlotResponse"
+                                        }
+                                    }
+                                }
+                            ]
+                        }
+                    },
+                    "400": {
+                        "description": "Bad Request",
+                        "schema": {
+                            "$ref": "#/definitions/types.ApiResponse"
+                        }
+                    }
+                }
+            }
+        },
+        "/api/v1/slot/{slot}/attestations": {
+            "get": {
+                "description": "Returns the attestations included in a specific slot",
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "Slot"
+                ],
+                "summary": "Get the attestations included in a specific slot",
+                "parameters": [
+                    {
+                        "type": "string",
+                        "description": "Slot",
+                        "name": "slot",
+                        "in": "path",
+                        "required": true
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "OK",
+                        "schema": {
+                            "allOf": [
+                                {
+                                    "$ref": "#/definitions/types.ApiResponse"
+                                },
+                                {
+                                    "type": "object",
+                                    "properties": {
+                                        "data": {
+                                            "type": "array",
+                                            "items": {
+                                                "$ref": "#/definitions/types.APIAttestationResponse"
+                                            }
+                                        }
+                                    }
+                                }
+                            ]
+                        }
+                    },
+                    "400": {
+                        "description": "Bad Request",
+                        "schema": {
+                            "$ref": "#/definitions/types.ApiResponse"
+                        }
+                    }
+                }
+            }
+        },
+        "/api/v1/slot/{slot}/attesterslashings": {
+            "get": {
+                "description": "Returns the attester slashings included in a specific slot",
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "Slot"
+                ],
+                "summary": "Get the attester slashings included in a specific slot",
+                "parameters": [
+                    {
+                        "type": "string",
+                        "description": "Slot",
+                        "name": "slot",
+                        "in": "path",
+                        "required": true
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "OK",
+                        "schema": {
+                            "allOf": [
+                                {
+                                    "$ref": "#/definitions/types.ApiResponse"
+                                },
+                                {
+                                    "type": "object",
+                                    "properties": {
+                                        "data": {
+                                            "type": "array",
+                                            "items": {
+                                                "$ref": "#/definitions/types.APIAttesterSlashingResponse"
+                                            }
+                                        }
+                                    }
+                                }
+                            ]
+                        }
+                    },
+                    "400": {
+                        "description": "Bad Request",
+                        "schema": {
+                            "$ref": "#/definitions/types.ApiResponse"
+                        }
+                    }
+                }
+            }
+        },
+        "/api/v1/slot/{slot}/deposits": {
+            "get": {
+                "description": "Returns the deposits included in a specific block",
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "Slot"
+                ],
+                "summary": "Get the deposits included in a specific block",
+                "parameters": [
+                    {
+                        "type": "string",
+                        "description": "Block slot",
+                        "name": "slot",
+                        "in": "path",
+                        "required": true
+                    },
+                    {
+                        "type": "string",
+                        "description": "Limit the number of results",
+                        "name": "limit",
+                        "in": "query"
+                    },
+                    {
+                        "type": "string",
+                        "description": "Offset the number of results",
+                        "name": "offset",
+                        "in": "query"
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "OK",
+                        "schema": {
+                            "$ref": "#/definitions/types.ApiResponse"
+                        }
+                    },
+                    "400": {
+                        "description": "Bad Request",
+                        "schema": {
+                            "$ref": "#/definitions/types.ApiResponse"
+                        }
+                    }
+                }
+            }
+        },
+        "/api/v1/slot/{slot}/proposerslashings": {
+            "get": {
+                "description": "Returns the proposer slashings included in a specific slot",
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "Slot"
+                ],
+                "summary": "Get the proposer slashings included in a specific slot",
+                "parameters": [
+                    {
+                        "type": "string",
+                        "description": "Slot",
+                        "name": "slot",
+                        "in": "path",
+                        "required": true
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "OK",
+                        "schema": {
+                            "allOf": [
+                                {
+                                    "$ref": "#/definitions/types.ApiResponse"
+                                },
+                                {
+                                    "type": "object",
+                                    "properties": {
+                                        "data": {
+                                            "type": "array",
+                                            "items": {
+                                                "$ref": "#/definitions/types.APIProposerSlashingResponse"
+                                            }
+                                        }
+                                    }
+                                }
+                            ]
+                        }
+                    },
+                    "400": {
+                        "description": "Bad Request",
+                        "schema": {
+                            "$ref": "#/definitions/types.ApiResponse"
+                        }
+                    }
+                }
+            }
+        },
+        "/api/v1/slot/{slot}/voluntaryexits": {
+            "get": {
+                "description": "Returns the voluntary exits included in a specific slot",
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "Slot"
+                ],
+                "summary": "Get the voluntary exits included in a specific slot",
+                "parameters": [
+                    {
+                        "type": "string",
+                        "description": "Slot",
+                        "name": "slot",
+                        "in": "path",
+                        "required": true
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "OK",
+                        "schema": {
+                            "allOf": [
+                                {
+                                    "$ref": "#/definitions/types.ApiResponse"
+                                },
+                                {
+                                    "type": "object",
+                                    "properties": {
+                                        "data": {
+                                            "type": "array",
+                                            "items": {
+                                                "$ref": "#/definitions/types.APIVoluntaryExitResponse"
+                                            }
+                                        }
+                                    }
+                                }
+                            ]
+                        }
+                    },
+                    "400": {
+                        "description": "Bad Request",
+                        "schema": {
+                            "$ref": "#/definitions/types.ApiResponse"
+                        }
+                    }
+                }
+            }
+        },
+        "/api/v1/slot/{slot}/withdrawals": {
+            "get": {
+                "description": "Returns the withdrawals included in a specific slot",
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "Slot"
+                ],
+                "summary": "Get the withdrawals included in a specific slot",
+                "parameters": [
+                    {
+                        "type": "string",
+                        "description": "Block slot",
+                        "name": "slot",
+                        "in": "path",
+                        "required": true
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "OK",
+                        "schema": {
+                            "$ref": "#/definitions/types.ApiResponse"
+                        }
+                    },
+                    "400": {
+                        "description": "Bad Request",
+                        "schema": {
+                            "$ref": "#/definitions/types.ApiResponse"
+                        }
+                    }
+                }
+            }
+        },
+        "/api/v1/sync_committee/{period}": {
+            "get": {
+                "description": "Returns the sync-committee for a sync-period. Validators are sorted by sync-committee-index.\nSync committees where introduced in the Altair hardfork. Peroids before the hardfork do not contain sync-committees.\nFor mainnet sync-committes first started after epoch 74240 (period 290) and each sync-committee is active for 256 epochs.",
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "SyncCommittee"
+                ],
+                "summary": "Get the sync-committee for a sync-period",
+                "parameters": [
+                    {
+                        "type": "string",
+                        "description": "Period ('latest' for latest period or 'next' for next period in the future)",
+                        "name": "period",
+                        "in": "path",
+                        "required": true
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "OK",
+                        "schema": {
+                            "allOf": [
+                                {
+                                    "$ref": "#/definitions/types.ApiResponse"
+                                },
+                                {
+                                    "type": "object",
+                                    "properties": {
+                                        "data": {
+                                            "$ref": "#/definitions/types.APISyncCommitteeResponse"
+                                        }
+                                    }
+                                }
+                            ]
+                        }
+                    },
+                    "400": {
+                        "description": "Bad Request",
+                        "schema": {
+                            "$ref": "#/definitions/types.ApiResponse"
+                        }
+                    }
+                }
+            }
+        },
+        "/api/v1/validator/eth1/{eth1address}": {
+            "get": {
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "Validator"
+                ],
+                "summary": "Get all validators that belong to an eth1 address",
+                "parameters": [
+                    {
+                        "type": "string",
+                        "description": "Eth1 address from which the validator deposits were sent",
+                        "name": "eth1address",
+                        "in": "path",
+                        "required": true
+                    },
+                    {
+                        "type": "string",
+                        "description": "Limit the number of results (default: 2000)",
+                        "name": "limit",
+                        "in": "query"
+                    },
+                    {
+                        "type": "string",
+                        "description": "Offset the results (default: 0)",
+                        "name": "offset",
+                        "in": "query"
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "OK",
+                        "schema": {
+                            "allOf": [
+                                {
+                                    "$ref": "#/definitions/types.ApiResponse"
+                                },
+                                {
+                                    "type": "object",
+                                    "properties": {
+                                        "data": {
+                                            "type": "array",
+                                            "items": {
+                                                "$ref": "#/definitions/types.ApiValidatorEth1Response"
+                                            }
+                                        }
+                                    }
+                                }
+                            ]
+                        }
+                    },
+                    "400": {
+                        "description": "Bad Request",
+                        "schema": {
+                            "$ref": "#/definitions/types.ApiResponse"
+                        }
+                    }
+                }
+            }
+        },
+        "/api/v1/validator/leaderboard": {
+            "get": {
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "Validator"
+                ],
+                "summary": "Get the current top 100 performing validators (using the income over the last 7 days)",
+                "responses": {
+                    "200": {
+                        "description": "OK",
+                        "schema": {
+                            "allOf": [
+                                {
+                                    "$ref": "#/definitions/types.ApiResponse"
+                                },
+                                {
+                                    "type": "object",
+                                    "properties": {
+                                        "data": {
+                                            "type": "array",
+                                            "items": {
+                                                "$ref": "#/definitions/types.ApiValidatorPerformanceResponse"
+                                            }
+                                        }
+                                    }
+                                }
+                            ]
+                        }
+                    },
+                    "400": {
+                        "description": "Bad Request",
+                        "schema": {
+                            "$ref": "#/definitions/types.ApiResponse"
+                        }
+                    }
+                }
+            }
+        },
+        "/api/v1/validator/stats/{index}": {
+            "get": {
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "Validator"
+                ],
+                "summary": "Get the daily validator stats by the validator index",
+                "parameters": [
+                    {
+                        "type": "string",
+                        "description": "Validator index",
+                        "name": "index",
+                        "in": "path",
+                        "required": true
+                    },
+                    {
+                        "type": "string",
+                        "description": "End day (default: latest day)",
+                        "name": "end_day",
+                        "in": "query"
+                    },
+                    {
+                        "type": "string",
+                        "description": "Start day (default: 0)",
+                        "name": "start_day",
+                        "in": "query"
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "OK",
+                        "schema": {
+                            "allOf": [
+                                {
+                                    "$ref": "#/definitions/types.ApiResponse"
+                                },
+                                {
+                                    "type": "object",
+                                    "properties": {
+                                        "data": {
+                                            "type": "array",
+                                            "items": {
+                                                "$ref": "#/definitions/types.ApiValidatorDailyStatsResponse"
+                                            }
+                                        }
+                                    }
+                                }
+                            ]
+                        }
+                    },
+                    "400": {
+                        "description": "Bad Request",
+                        "schema": {
+                            "$ref": "#/definitions/types.ApiResponse"
+                        }
+                    }
+                }
+            }
+        },
+        "/api/v1/validator/withdrawalCredentials/{withdrawalCredentialsOrEth1address}": {
+            "get": {
+                "description": "Returns the validator indexes and pubkeys of a withdrawal credential or eth1 address",
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "Validator"
+                ],
+                "summary": "Get validator indexes and pubkeys of a withdrawal credential or eth1 address",
+                "parameters": [
+                    {
+                        "type": "string",
+                        "description": "Provide a withdrawal credential or an eth1 address with an optional 0x prefix",
+                        "name": "withdrawalCredentialsOrEth1address",
+                        "in": "path",
+                        "required": true
+                    },
+                    {
+                        "type": "integer",
+                        "default": 10,
+                        "description": "Limit the number of results, maximum: 200",
+                        "name": "limit",
+                        "in": "query"
+                    },
+                    {
+                        "type": "integer",
+                        "default": 0,
+                        "description": "Offset the number of results",
+                        "name": "offset",
+                        "in": "query"
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "OK",
+                        "schema": {
+                            "allOf": [
+                                {
+                                    "$ref": "#/definitions/types.ApiResponse"
+                                },
+                                {
+                                    "type": "object",
+                                    "properties": {
+                                        "data": {
+                                            "type": "array",
+                                            "items": {
+                                                "$ref": "#/definitions/types.ApiWithdrawalCredentialsResponse"
+                                            }
+                                        }
+                                    }
+                                }
+                            ]
+                        }
+                    },
+                    "400": {
+                        "description": "Bad Request",
+                        "schema": {
+                            "$ref": "#/definitions/types.ApiResponse"
+                        }
+                    }
+                }
+            }
+        },
+        "/api/v1/validator/{indexOrPubkey}": {
+            "get": {
+                "description": "Searching for too many validators based on their pubkeys will lead to an \"URI too long\" error",
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "Validator"
+                ],
+                "summary": "Get up to 100 validators",
+                "parameters": [
+                    {
+                        "type": "string",
+                        "description": "Up to 100 validator indicesOrPubkeys, comma separated",
+                        "name": "indexOrPubkey",
+                        "in": "path",
+                        "required": true
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "OK",
+                        "schema": {
+                            "allOf": [
+                                {
+                                    "$ref": "#/definitions/types.ApiResponse"
+                                },
+                                {
+                                    "type": "object",
+                                    "properties": {
+                                        "data": {
+                                            "type": "array",
+                                            "items": {
+                                                "$ref": "#/definitions/types.APIValidatorResponse"
+                                            }
+                                        }
+                                    }
+                                }
+                            ]
+                        }
+                    },
+                    "400": {
+                        "description": "Bad Request",
+                        "schema": {
+                            "$ref": "#/definitions/types.ApiResponse"
+                        }
+                    }
+                }
+            },
+            "post": {
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "Validator"
+                ],
+                "summary": "Get unlimited validators",
+                "parameters": [
+                    {
+                        "type": "string",
+                        "description": "Validator indicesOrPubkeys, comma separated",
+                        "name": "indexOrPubkey",
+                        "in": "path",
+                        "required": true
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "OK",
+                        "schema": {
+                            "allOf": [
+                                {
+                                    "$ref": "#/definitions/types.ApiResponse"
+                                },
+                                {
+                                    "type": "object",
+                                    "properties": {
+                                        "data": {
+                                            "type": "array",
+                                            "items": {
+                                                "$ref": "#/definitions/types.APIValidatorResponse"
+                                            }
+                                        }
+                                    }
+                                }
+                            ]
+                        }
+                    },
+                    "400": {
+                        "description": "Bad Request",
+                        "schema": {
+                            "$ref": "#/definitions/types.ApiResponse"
+                        }
+                    }
+                }
+            }
+        },
+        "/api/v1/validator/{indexOrPubkey}/attestationeffectiveness": {
+            "get": {
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "Validator"
+                ],
+                "summary": "DEPRECIATED - USE /attestationefficiency (Get the current performance of up to 100 validators)",
+                "parameters": [
+                    {
+                        "type": "string",
+                        "description": "Up to 100 validator indicesOrPubkeys, comma separated",
+                        "name": "indexOrPubkey",
+                        "in": "path",
+                        "required": true
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "OK",
+                        "schema": {
+                            "$ref": "#/definitions/types.ApiResponse"
+                        }
+                    },
+                    "400": {
+                        "description": "Bad Request",
+                        "schema": {
+                            "$ref": "#/definitions/types.ApiResponse"
+                        }
+                    }
+                }
+            }
+        },
+        "/api/v1/validator/{indexOrPubkey}/attestationefficiency": {
+            "get": {
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "Validator"
+                ],
+                "summary": "Get the current performance of up to 100 validators",
+                "parameters": [
+                    {
+                        "type": "string",
+                        "description": "Up to 100 validator indicesOrPubkeys, comma separated",
+                        "name": "indexOrPubkey",
+                        "in": "path",
+                        "required": true
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "OK",
+                        "schema": {
+                            "$ref": "#/definitions/types.ApiResponse"
+                        }
+                    },
+                    "400": {
+                        "description": "Bad Request",
+                        "schema": {
+                            "$ref": "#/definitions/types.ApiResponse"
+                        }
+                    }
+                }
+            }
+        },
+        "/api/v1/validator/{indexOrPubkey}/attestations": {
+            "get": {
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "Validator"
+                ],
+                "summary": "Get all attestations during the last 10 epochs for up to 100 validators",
+                "parameters": [
+                    {
+                        "type": "string",
+                        "description": "Up to 100 validator indicesOrPubkeys, comma separated",
+                        "name": "indexOrPubkey",
+                        "in": "path",
+                        "required": true
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "OK",
+                        "schema": {
+                            "$ref": "#/definitions/types.ApiResponse"
+                        }
+                    },
+                    "400": {
+                        "description": "Bad Request",
+                        "schema": {
+                            "$ref": "#/definitions/types.ApiResponse"
+                        }
+                    }
+                }
+            }
+        },
+        "/api/v1/validator/{indexOrPubkey}/balancehistory": {
+            "get": {
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "Validator"
+                ],
+                "summary": "Get the balance history of up to 100 validators",
+                "parameters": [
+                    {
+                        "type": "string",
+                        "description": "Up to 100 validator indicesOrPubkeys, comma separated",
+                        "name": "indexOrPubkey",
+                        "in": "path",
+                        "required": true
+                    },
+                    {
+                        "type": "integer",
+                        "description": "The latest epoch to consider in the query",
+                        "name": "latest_epoch",
+                        "in": "query"
+                    },
+                    {
+                        "type": "integer",
+                        "description": "Number of items to skip",
+                        "name": "offset",
+                        "in": "query"
+                    },
+                    {
+                        "type": "integer",
+                        "description": "Maximum number of items to return, up to 100",
+                        "name": "limit",
+                        "in": "query"
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "OK",
+                        "schema": {
+                            "allOf": [
+                                {
+                                    "$ref": "#/definitions/types.ApiResponse"
+                                },
+                                {
+                                    "type": "object",
+                                    "properties": {
+                                        "data": {
+                                            "type": "array",
+                                            "items": {
+                                                "$ref": "#/definitions/types.ApiValidatorBalanceHistoryResponse"
+                                            }
+                                        }
+                                    }
+                                }
+                            ]
+                        }
+                    },
+                    "400": {
+                        "description": "Bad Request",
+                        "schema": {
+                            "$ref": "#/definitions/types.ApiResponse"
+                        }
+                    }
+                }
+            }
+        },
+        "/api/v1/validator/{indexOrPubkey}/deposits": {
+            "get": {
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "Validator"
+                ],
+                "summary": "Get all eth1 deposits for up to 100 validators",
+                "parameters": [
+                    {
+                        "type": "string",
+                        "description": "Up to 100 validator indicesOrPubkeys, comma separated",
+                        "name": "indexOrPubkey",
+                        "in": "path",
+                        "required": true
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "OK",
+                        "schema": {
+                            "allOf": [
+                                {
+                                    "$ref": "#/definitions/types.ApiResponse"
+                                },
+                                {
+                                    "type": "object",
+                                    "properties": {
+                                        "data": {
+                                            "type": "array",
+                                            "items": {
+                                                "$ref": "#/definitions/types.ApiValidatorDepositsResponse"
+                                            }
+                                        }
+                                    }
+                                }
+                            ]
+                        }
+                    },
+                    "400": {
+                        "description": "Bad Request",
+                        "schema": {
+                            "$ref": "#/definitions/types.ApiResponse"
+                        }
+                    }
+                }
+            }
+        },
+        "/api/v1/validator/{indexOrPubkey}/execution/performance": {
+            "get": {
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "Validator"
+                ],
+                "summary": "Get the current execution reward performance of up to 100 validators. If block was produced via mev relayer, this endpoint will use the relayer data as block reward instead of the normal block reward.",
+                "parameters": [
+                    {
+                        "type": "string",
+                        "description": "Up to 100 validator indicesOrPubkeys, comma separated",
+                        "name": "indexOrPubkey",
+                        "in": "path",
+                        "required": true
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "OK",
+                        "schema": {
+                            "allOf": [
+                                {
+                                    "$ref": "#/definitions/types.ApiResponse"
+                                },
+                                {
+                                    "type": "object",
+                                    "properties": {
+                                        "data": {
+                                            "type": "array",
+                                            "items": {
+                                                "$ref": "#/definitions/types.ApiValidatorExecutionPerformanceResponse"
+                                            }
+                                        }
+                                    }
+                                }
+                            ]
+                        }
+                    },
+                    "400": {
+                        "description": "Bad Request",
+                        "schema": {
+                            "$ref": "#/definitions/types.ApiResponse"
+                        }
+                    }
+                }
+            }
+        },
+        "/api/v1/validator/{indexOrPubkey}/incomedetailhistory": {
+            "get": {
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "Validator"
+                ],
+                "summary": "Get the income detail history (last 100 epochs) of up to 100 validators",
+                "parameters": [
+                    {
+                        "type": "string",
+                        "description": "Up to 100 validator indicesOrPubkeys, comma separated",
+                        "name": "indexOrPubkey",
+                        "in": "path",
+                        "required": true
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "OK",
+                        "schema": {
+                            "allOf": [
+                                {
+                                    "$ref": "#/definitions/types.ApiResponse"
+                                },
+                                {
+                                    "type": "object",
+                                    "properties": {
+                                        "data": {
+                                            "type": "array",
+                                            "items": {
+                                                "$ref": "#/definitions/types.ApiValidatorIncomeHistoryResponse"
+                                            }
+                                        }
+                                    }
+                                }
+                            ]
+                        }
+                    },
+                    "400": {
+                        "description": "Bad Request",
+                        "schema": {
+                            "$ref": "#/definitions/types.ApiResponse"
+                        }
+                    }
+                }
+            }
+        },
+        "/api/v1/validator/{indexOrPubkey}/performance": {
+            "get": {
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "Validator"
+                ],
+                "summary": "Get the current consensus reward performance of up to 100 validators",
+                "parameters": [
+                    {
+                        "type": "string",
+                        "description": "Up to 100 validator indicesOrPubkeys, comma separated",
+                        "name": "indexOrPubkey",
+                        "in": "path",
+                        "required": true
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "OK",
+                        "schema": {
+                            "allOf": [
+                                {
+                                    "$ref": "#/definitions/types.ApiResponse"
+                                },
+                                {
+                                    "type": "object",
+                                    "properties": {
+                                        "data": {
+                                            "type": "array",
+                                            "items": {
+                                                "$ref": "#/definitions/types.ApiValidatorPerformanceResponse"
+                                            }
+                                        }
+                                    }
+                                }
+                            ]
+                        }
+                    },
+                    "400": {
+                        "description": "Bad Request",
+                        "schema": {
+                            "$ref": "#/definitions/types.ApiResponse"
+                        }
+                    }
+                }
+            }
+        },
+        "/api/v1/validator/{indexOrPubkey}/proposals": {
+            "get": {
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "Validator"
+                ],
+                "summary": "Get all proposed blocks during the last 100 epochs for up to 100 validators. Optionally set the epoch query parameter to look back further.",
+                "parameters": [
+                    {
+                        "type": "string",
+                        "description": "Up to 100 validator indicesOrPubkeys, comma separated",
+                        "name": "indexOrPubkey",
+                        "in": "path",
+                        "required": true
+                    },
+                    {
+                        "type": "string",
+                        "description": "Page the result by epoch",
+                        "name": "epoch",
+                        "in": "query"
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "OK",
+                        "schema": {
+                            "allOf": [
+                                {
+                                    "$ref": "#/definitions/types.ApiResponse"
+                                },
+                                {
+                                    "type": "object",
+                                    "properties": {
+                                        "data": {
+                                            "type": "array",
+                                            "items": {
+                                                "$ref": "#/definitions/types.ApiValidatorProposalsResponse"
+                                            }
+                                        }
+                                    }
+                                }
+                            ]
+                        }
+                    },
+                    "400": {
+                        "description": "Bad Request",
+                        "schema": {
+                            "$ref": "#/definitions/types.ApiResponse"
+                        }
+                    }
+                }
+            }
+        },
+        "/api/v1/validator/{indexOrPubkey}/withdrawals": {
+            "get": {
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "Validator"
+                ],
+                "summary": "Get the withdrawal history of up to 100 validators for the last 100 epochs. To receive older withdrawals modify the epoch paraum",
+                "parameters": [
+                    {
+                        "type": "string",
+                        "description": "Up to 100 validator indicesOrPubkeys, comma separated",
+                        "name": "indexOrPubkey",
+                        "in": "path",
+                        "required": true
+                    },
+                    {
+                        "type": "integer",
+                        "description": "the start epoch for the withdrawal history (default: latest epoch)",
+                        "name": "epoch",
+                        "in": "query"
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "OK",
+                        "schema": {
+                            "allOf": [
+                                {
+                                    "$ref": "#/definitions/types.ApiResponse"
+                                },
+                                {
+                                    "type": "object",
+                                    "properties": {
+                                        "data": {
+                                            "type": "array",
+                                            "items": {
+                                                "$ref": "#/definitions/types.ApiValidatorWithdrawalResponse"
+                                            }
+                                        }
+                                    }
+                                }
+                            ]
+                        }
+                    },
+                    "400": {
+                        "description": "Bad Request",
+                        "schema": {
+                            "$ref": "#/definitions/types.ApiResponse"
+                        }
+                    }
+                }
+            }
+        },
+        "/api/v1/validators/queue": {
+            "get": {
+                "description": "Returns the current number of validators entering and exiting the beacon chain",
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "Validator"
+                ],
+                "summary": "Get the current validator queue",
+                "responses": {
+                    "200": {
+                        "description": "OK",
+                        "schema": {
+                            "allOf": [
+                                {
+                                    "$ref": "#/definitions/types.ApiResponse"
+                                },
+                                {
+                                    "type": "object",
+                                    "properties": {
+                                        "data": {
+                                            "$ref": "#/definitions/types.ApiValidatorQueueResponse"
+                                        }
+                                    }
+                                }
+                            ]
+                        }
+                    },
+                    "400": {
+                        "description": "Bad Request",
+                        "schema": {
+                            "$ref": "#/definitions/types.ApiResponse"
+                        }
+                    }
+                }
+            }
+        }
+    },
+    "definitions": {
+        "types.APIAttestationResponse": {
+            "type": "object",
+            "properties": {
+                "aggregationbits": {
+                    "type": "string"
+                },
+                "beaconblockroot": {
+                    "type": "string"
+                },
+                "block_index": {
+                    "type": "integer"
+                },
+                "block_root": {
+                    "type": "string"
+                },
+                "block_slot": {
+                    "type": "integer"
+                },
+                "committeeindex": {
+                    "type": "integer"
+                },
+                "signature": {
+                    "type": "string"
+                },
+                "slot": {
+                    "type": "integer"
+                },
+                "source_epoch": {
+                    "type": "integer"
+                },
+                "source_root": {
+                    "type": "string"
+                },
+                "target_epoch": {
+                    "type": "integer"
+                },
+                "target_root": {
+                    "type": "string"
+                },
+                "validators": {
+                    "type": "array",
+                    "items": {
+                        "type": "integer"
+                    }
+                }
+            }
+        },
+        "types.APIAttesterSlashingResponse": {
+            "type": "object",
+            "properties": {
+                "attestation1_beaconblockroot": {
+                    "type": "string"
+                },
+                "attestation1_index": {
+                    "type": "integer"
+                },
+                "attestation1_indices": {
+                    "type": "array",
+                    "items": {
+                        "type": "integer"
+                    }
+                },
+                "attestation1_signature": {
+                    "type": "string"
+                },
+                "attestation1_slot": {
+                    "type": "integer"
+                },
+                "attestation1_source_epoch": {
+                    "type": "integer"
+                },
+                "attestation1_source_root": {
+                    "type": "string"
+                },
+                "attestation1_target_epoch": {
+                    "type": "integer"
+                },
+                "attestation1_target_root": {
+                    "type": "string"
+                },
+                "attestation2_beaconblockroot": {
+                    "type": "string"
+                },
+                "attestation2_index": {
+                    "type": "integer"
+                },
+                "attestation2_indices": {
+                    "type": "array",
+                    "items": {
+                        "type": "integer"
+                    }
+                },
+                "attestation2_signature": {
+                    "type": "string"
+                },
+                "attestation2_slot": {
+                    "type": "integer"
+                },
+                "attestation2_source_epoch": {
+                    "type": "integer"
+                },
+                "attestation2_source_root": {
+                    "type": "string"
+                },
+                "attestation2_target_epoch": {
+                    "type": "integer"
+                },
+                "attestation2_target_root": {
+                    "type": "string"
+                },
+                "block_index": {
+                    "type": "integer"
+                },
+                "block_root": {
+                    "type": "string"
+                },
+                "block_slot": {
+                    "type": "integer"
+                }
+            }
+        },
+        "types.APIEpochResponse": {
+            "type": "object",
+            "properties": {
+                "attestationscount": {
+                    "type": "integer"
+                },
+                "attesterslashingscount": {
+                    "type": "integer"
+                },
+                "averagevalidatorbalance": {
+                    "type": "integer"
+                },
+                "blockscount": {
+                    "type": "integer"
+                },
+                "depositscount": {
+                    "type": "integer"
+                },
+                "eligibleether": {
+                    "type": "integer"
+                },
+                "epoch": {
+                    "type": "integer"
+                },
+                "finalized": {
+                    "type": "boolean"
+                },
+                "globalparticipationrate": {
+                    "type": "integer"
+                },
+                "missedblocks": {
+                    "type": "integer"
+                },
+                "orphanedblocks": {
+                    "type": "integer"
+                },
+                "proposedblocks": {
+                    "type": "integer"
+                },
+                "proposerslashingscount": {
+                    "type": "integer"
+                },
+                "rewards_exported": {
+                    "type": "integer"
+                },
+                "scheduledblocks": {
+                    "type": "integer"
+                },
+                "totalvalidatorbalance": {
+                    "type": "integer"
+                },
+                "ts": {
+                    "type": "integer"
+                },
+                "validatorscount": {
+                    "type": "integer"
+                },
+                "voluntaryexitscount": {
+                    "type": "integer"
+                },
+                "votedether": {
+                    "type": "integer"
+                },
+                "withdrawalcount": {
+                    "type": "integer"
+                }
+            }
+        },
+        "types.APIProposerSlashingResponse": {
+            "type": "object",
+            "properties": {
+                "block_index": {
+                    "type": "integer"
+                },
+                "block_root": {
+                    "type": "string"
+                },
+                "block_slot": {
+                    "type": "integer"
+                },
+                "header1_bodyroot": {
+                    "type": "string"
+                },
+                "header1_parentroot": {
+                    "type": "string"
+                },
+                "header1_signature": {
+                    "type": "string"
+                },
+                "header1_slot": {
+                    "type": "integer"
+                },
+                "header1_stateroot": {
+                    "type": "string"
+                },
+                "header2_bodyroot": {
+                    "type": "string"
+                },
+                "header2_parentroot": {
+                    "type": "string"
+                },
+                "header2_signature": {
+                    "type": "string"
+                },
+                "header2_slot": {
+                    "type": "integer"
+                },
+                "header2_stateroot": {
+                    "type": "string"
+                },
+                "proposerindex": {
+                    "type": "integer"
+                }
+            }
+        },
+        "types.APIRocketpoolStatsResponse": {
+            "type": "object",
+            "properties": {
+                "claim_interval_time": {
+                    "type": "string"
+                },
+                "claim_interval_time_start": {
+                    "type": "integer"
+                },
+                "current_node_demand": {
+                    "type": "number"
+                },
+                "current_node_fee": {
+                    "type": "number"
+                },
+                "effective_rpl_staked": {
+                    "type": "number"
+                },
+                "minipool_count": {
+                    "type": "integer"
+                },
+                "node_count": {
+                    "type": "integer"
+                },
+                "node_operator_rewards": {
+                    "type": "number"
+                },
+                "odao_member_count": {
+                    "type": "integer"
+                },
+                "reth_apr": {
+                    "type": "number"
+                },
+                "reth_exchange_rate": {
+                    "type": "number"
+                },
+                "reth_supply": {
+                    "type": "number"
+                },
+                "rpl_price": {
+                    "type": "integer"
+                },
+                "total_eth_balance": {
+                    "type": "number"
+                },
+                "total_eth_staking": {
+                    "type": "number"
+                }
+            }
+        },
+        "types.APISlotResponse": {
+            "type": "object",
+            "properties": {
+                "attestationscount": {
+                    "type": "integer"
+                },
+                "attesterslashingscount": {
+                    "type": "integer"
+                },
+                "blockroot": {
+                    "type": "string"
+                },
+                "depositscount": {
+                    "type": "integer"
+                },
+                "epoch": {
+                    "type": "integer"
+                },
+                "eth1data_blockhash": {
+                    "type": "string"
+                },
+                "eth1data_depositcount": {
+                    "type": "integer"
+                },
+                "eth1data_depositroot": {
+                    "type": "string"
+                },
+                "exec_base_fee_per_gas": {
+                    "type": "integer",
+                    "x-nullable": true
+                },
+                "exec_block_hash": {
+                    "type": "string",
+                    "x-nullable": true
+                },
+                "exec_block_number": {
+                    "type": "integer",
+                    "x-nullable": true
+                },
+                "exec_extra_data": {
+                    "type": "string",
+                    "x-nullable": true
+                },
+                "exec_fee_recipient": {
+                    "type": "string",
+                    "x-nullable": true
+                },
+                "exec_gas_limit": {
+                    "type": "integer",
+                    "x-nullable": true
+                },
+                "exec_gas_used": {
+                    "type": "integer",
+                    "x-nullable": true
+                },
+                "exec_logs_bloom": {
+                    "type": "string",
+                    "x-nullable": true
+                },
+                "exec_parent_hash": {
+                    "type": "string",
+                    "x-nullable": true
+                },
+                "exec_random": {
+                    "type": "string",
+                    "x-nullable": true
+                },
+                "exec_receipts_root": {
+                    "type": "string",
+                    "x-nullable": true
+                },
+                "exec_state_root": {
+                    "type": "string",
+                    "x-nullable": true
+                },
+                "exec_timestamp": {
+                    "type": "integer",
+                    "x-nullable": true
+                },
+                "exec_transactions_count": {
+                    "type": "integer",
+                    "x-nullable": true
+                },
+                "graffiti": {
+                    "type": "string"
+                },
+                "graffiti_text": {
+                    "type": "string"
+                },
+                "parentroot": {
+                    "type": "string"
+                },
+                "proposer": {
+                    "type": "integer"
+                },
+                "proposerslashingscount": {
+                    "type": "integer"
+                },
+                "randaoreveal": {
+                    "type": "string"
+                },
+                "signature": {
+                    "type": "string"
+                },
+                "slot": {
+                    "type": "integer"
+                },
+                "stateroot": {
+                    "type": "string"
+                },
+                "status": {
+                    "type": "string"
+                },
+                "syncaggregate_bits": {
+                    "type": "string"
+                },
+                "syncaggregate_participation": {
+                    "type": "number"
+                },
+                "syncaggregate_signature": {
+                    "type": "string"
+                },
+                "voluntaryexitscount": {
+                    "type": "integer"
+                },
+                "withdrawalcount": {
+                    "type": "integer"
+                }
+            }
+        },
+        "types.APISyncCommitteeResponse": {
+            "type": "object",
+            "properties": {
+                "end_epoch": {
+                    "type": "integer"
+                },
+                "period": {
+                    "type": "integer"
+                },
+                "start_epoch": {
+                    "type": "integer"
+                },
+                "validators": {
+                    "type": "array",
+                    "items": {
+                        "type": "integer"
+                    }
+                }
+            }
+        },
+        "types.APIValidatorResponse": {
+            "type": "object",
+            "properties": {
+                "activation_eligibility_epoch": {
+                    "type": "integer"
+                },
+                "activation_epoch": {
+                    "type": "integer"
+                },
+                "balance": {
+                    "type": "integer"
+                },
+                "effective_balance": {
+                    "type": "integer"
+                },
+                "exit_epoch": {
+                    "type": "integer"
+                },
+                "last_attestation_slot": {
+                    "type": "integer"
+                },
+                "name": {
+                    "type": "string"
+                },
+                "pubkey": {
+                    "type": "string"
+                },
+                "slashed": {
+                    "type": "boolean"
+                },
+                "status": {
+                    "type": "string"
+                },
+                "validator_index": {
+                    "type": "integer"
+                },
+                "withdrawable_epoch": {
+                    "type": "integer"
+                },
+                "withdrawal_credentials": {
+                    "type": "string"
+                }
+            }
+        },
+        "types.APIVoluntaryExitResponse": {
+            "type": "object",
+            "properties": {
+                "block_index": {
+                    "type": "integer"
+                },
+                "block_root": {
+                    "type": "string"
+                },
+                "block_slot": {
+                    "type": "integer"
+                },
+                "epoch": {
+                    "type": "integer"
+                },
+                "signature": {
+                    "type": "string"
+                },
+                "validatorindex": {
+                    "type": "integer"
+                }
+            }
+        },
+        "types.ApiResponse": {
+            "type": "object",
+            "properties": {
+                "data": {},
+                "status": {
+                    "type": "string"
+                }
+            }
+        },
+        "types.ApiRocketpoolValidatorResponse": {
+            "type": "object",
+            "properties": {
+                "claimed_smoothing_pool": {
+                    "type": "number"
+                },
+                "index": {
+                    "type": "integer"
+                },
+                "minipool_address": {
+                    "type": "string"
+                },
+                "minipool_deposit_type": {
+                    "type": "string"
+                },
+                "minipool_node_fee": {
+                    "type": "number"
+                },
+                "minipool_status": {
+                    "type": "string"
+                },
+                "minipool_status_time": {
+                    "type": "integer"
+                },
+                "node_address": {
+                    "type": "string"
+                },
+                "node_max_rpl_stake": {
+                    "type": "number"
+                },
+                "node_min_rpl_stake": {
+                    "type": "number"
+                },
+                "node_rpl_stake": {
+                    "type": "number"
+                },
+                "node_timezone_location": {
+                    "type": "string"
+                },
+                "penalty_count": {
+                    "type": "integer"
+                },
+                "rpl_cumulative_rewards": {
+                    "type": "number"
+                },
+                "smoothing_pool_opted_in": {
+                    "type": "boolean"
+                },
+                "unclaimed_rpl_rewards": {
+                    "type": "number"
+                },
+                "unclaimed_smoothing_pool": {
+                    "type": "number"
+                }
+            }
+        },
+        "types.ApiValidatorBalanceHistoryResponse": {
+            "type": "object",
+            "properties": {
+                "balance": {
+                    "type": "integer"
+                },
+                "effectivebalance": {
+                    "type": "integer"
+                },
+                "epoch": {
+                    "type": "integer"
+                },
+                "validatorindex": {
+                    "type": "integer"
+                },
+                "week": {
+                    "type": "integer"
+                },
+                "week_end": {
+                    "type": "string"
+                },
+                "week_start": {
+                    "type": "string"
+                }
+            }
+        },
+        "types.ApiValidatorDailyStatsResponse": {
+            "type": "object",
+            "properties": {
+                "attester_slashings": {
+                    "type": "integer"
+                },
+                "day": {
+                    "type": "integer"
+                },
+                "day_end": {
+                    "type": "string"
+                },
+                "day_start": {
+                    "type": "string"
+                },
+                "deposits": {
+                    "type": "integer"
+                },
+                "deposits_amount": {
+                    "type": "integer"
+                },
+                "end_balance": {
+                    "type": "integer"
+                },
+                "end_effective_balance": {
+                    "type": "integer"
+                },
+                "max_balance": {
+                    "type": "integer"
+                },
+                "max_effective_balance": {
+                    "type": "integer"
+                },
+                "min_balance": {
+                    "type": "integer"
+                },
+                "min_effective_balance": {
+                    "type": "integer"
+                },
+                "missed_attestations": {
+                    "type": "integer"
+                },
+                "missed_blocks": {
+                    "type": "integer"
+                },
+                "missed_sync": {
+                    "type": "integer"
+                },
+                "orphaned_attestations": {
+                    "type": "integer"
+                },
+                "orphaned_blocks": {
+                    "type": "integer"
+                },
+                "orphaned_sync": {
+                    "type": "integer"
+                },
+                "participated_sync": {
+                    "type": "integer"
+                },
+                "proposed_blocks": {
+                    "type": "integer"
+                },
+                "proposer_slashings": {
+                    "type": "integer"
+                },
+                "start_balance": {
+                    "type": "integer"
+                },
+                "start_effective_balance": {
+                    "type": "integer"
+                },
+                "validatorindex": {
+                    "type": "integer"
+                },
+                "withdrawals": {
+                    "type": "integer"
+                },
+                "withdrawals_amount": {
+                    "type": "integer"
+                }
+            }
+        },
+        "types.ApiValidatorDepositsResponse": {
+            "type": "object",
+            "properties": {
+                "amount": {
+                    "type": "integer"
+                },
+                "block_number": {
+                    "type": "integer"
+                },
+                "block_ts": {
+                    "type": "integer"
+                },
+                "from_address": {
+                    "type": "string"
+                },
+                "merkletree_index": {
+                    "type": "string"
+                },
+                "publickey": {
+                    "type": "string"
+                },
+                "removed": {
+                    "type": "boolean"
+                },
+                "signature": {
+                    "type": "string"
+                },
+                "tx_hash": {
+                    "type": "string"
+                },
+                "tx_index": {
+                    "type": "integer"
+                },
+                "tx_input": {
+                    "type": "string"
+                },
+                "valid_signature": {
+                    "type": "boolean"
+                },
+                "withdrawal_credentials": {
+                    "type": "string"
+                }
+            }
+        },
+        "types.ApiValidatorEth1Response": {
+            "type": "object",
+            "properties": {
+                "public_key": {
+                    "type": "string"
+                },
+                "valid_signature": {
+                    "type": "boolean"
+                },
+                "validator_index": {
+                    "type": "integer"
+                }
+            }
+        },
+        "types.ApiValidatorExecutionPerformanceResponse": {
+            "type": "object",
+            "properties": {
+                "performance1d": {
+                    "type": "integer"
+                },
+                "performance31d": {
+                    "type": "integer"
+                },
+                "performance7d": {
+                    "type": "integer"
+                },
+                "validatorindex": {
+                    "type": "integer"
+                }
+            }
+        },
+        "types.ApiValidatorIncomeHistoryResponse": {
+            "type": "object",
+            "properties": {
+                "epoch": {
+                    "type": "integer"
+                },
+                "income": {
+                    "type": "object",
+                    "properties": {
+                        "attestation_head_reward": {
+                            "type": "integer"
+                        },
+                        "attestation_source_reward": {
+                            "type": "integer"
+                        },
+                        "attestation_target_reward": {
+                            "type": "integer"
+                        }
+                    }
+                },
+                "validatorindex": {
+                    "type": "integer"
+                },
+                "week": {
+                    "type": "integer"
+                },
+                "week_end": {
+                    "type": "string"
+                },
+                "week_start": {
+                    "type": "string"
+                }
+            }
+        },
+        "types.ApiValidatorPerformanceResponse": {
+            "type": "object",
+            "properties": {
+                "balance": {
+                    "type": "integer"
+                },
+                "performance1d": {
+                    "type": "integer"
+                },
+                "performance31d": {
+                    "type": "integer"
+                },
+                "performance365d": {
+                    "type": "integer"
+                },
+                "performance7d": {
+                    "type": "integer"
+                },
+                "rank7d": {
+                    "type": "integer"
+                },
+                "validatorindex": {
+                    "type": "integer"
+                }
+            }
+        },
+        "types.ApiValidatorProposalsResponse": {
+            "type": "object",
+            "properties": {
+                "attestationscount": {
+                    "type": "integer"
+                },
+                "attesterslashingscount": {
+                    "type": "integer"
+                },
+                "blockroot": {
+                    "type": "string"
+                },
+                "depositscount": {
+                    "type": "integer"
+                },
+                "epoch": {
+                    "type": "integer"
+                },
+                "eth1data_blockhash": {
+                    "type": "string"
+                },
+                "eth1data_depositcount": {
+                    "type": "integer"
+                },
+                "eth1data_depositroot": {
+                    "type": "string"
+                },
+                "exec_base_fee_per_gas": {
+                    "type": "integer"
+                },
+                "exec_block_hash": {
+                    "type": "string"
+                },
+                "exec_block_number": {
+                    "type": "integer"
+                },
+                "exec_extra_data": {
+                    "type": "string"
+                },
+                "exec_fee_recipient": {
+                    "type": "string"
+                },
+                "exec_gas_limit": {
+                    "type": "integer"
+                },
+                "exec_gas_used": {
+                    "type": "integer"
+                },
+                "exec_logs_bloom": {
+                    "type": "string"
+                },
+                "exec_parent_hash": {
+                    "type": "string"
+                },
+                "exec_random": {
+                    "type": "string"
+                },
+                "exec_receipts_root": {
+                    "type": "string"
+                },
+                "exec_state_root": {
+                    "type": "string"
+                },
+                "exec_timestamp": {
+                    "type": "integer"
+                },
+                "exec_transactions_count": {
+                    "type": "integer"
+                },
+                "graffiti": {
+                    "type": "string"
+                },
+                "graffiti_text": {
+                    "type": "string"
+                },
+                "parentroot": {
+                    "type": "string"
+                },
+                "proposer": {
+                    "type": "integer"
+                },
+                "proposerslashingscount": {
+                    "type": "integer"
+                },
+                "randaoreveal": {
+                    "type": "string"
+                },
+                "signature": {
+                    "type": "string"
+                },
+                "slot": {
+                    "type": "integer"
+                },
+                "stateroot": {
+                    "type": "string"
+                },
+                "status": {
+                    "type": "string"
+                },
+                "syncaggregate_bits": {
+                    "type": "string"
+                },
+                "syncaggregate_participation": {
+                    "type": "number"
+                },
+                "syncaggregate_signature": {
+                    "type": "string"
+                },
+                "voluntaryexitscount": {
+                    "type": "integer"
+                }
+            }
+        },
+        "types.ApiValidatorQueueResponse": {
+            "type": "object",
+            "properties": {
+                "beaconchain_entering": {
+                    "type": "integer"
+                },
+                "beaconchain_exiting": {
+                    "type": "integer"
+                },
+                "validators_count": {
+                    "type": "integer"
+                }
+            }
+        },
+        "types.ApiValidatorWithdrawalResponse": {
+            "type": "object",
+            "properties": {
+                "address": {
+                    "type": "string"
+                },
+                "amount": {
+                    "type": "integer"
+                },
+                "blockroot": {
+                    "type": "string"
+                },
+                "epoch": {
+                    "type": "integer"
+                },
+                "slot": {
+                    "type": "integer"
+                },
+                "validatorindex": {
+                    "type": "integer"
+                },
+                "withdrawalindex": {
+                    "type": "integer"
+                }
+            }
+        },
+        "types.ApiWithdrawalCredentialsResponse": {
+            "type": "object",
+            "properties": {
+                "publickey": {
+                    "type": "string"
+                },
+                "validatorindex": {
+                    "type": "integer"
+                }
+            }
+        }
+    }
+}
