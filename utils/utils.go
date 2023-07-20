@@ -882,3 +882,8 @@ func FormatTokenSymbolHTML(tmpl template.HTML) template.HTML {
 
 	return tmpl
 }
+
+// FormatGraffitiString formats (and escapes) the graffiti
+func FormatGraffitiString(graffiti string) string {
+	return strings.Map(fixUtf, template.HTMLEscapeString(graffiti))
+}

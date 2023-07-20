@@ -2,9 +2,11 @@ package types
 
 import (
 	"database/sql"
+	"encoding/json"
 	"math/big"
 
 	"github.com/jackc/pgtype"
+	"github.com/pkg/errors"
 	"github.com/shopspring/decimal"
 )
 
@@ -272,6 +274,34 @@ type ValidatorParticipation struct {
 	GlobalParticipationRate float32
 	VotedEther              uint64
 	EligibleEther           uint64
+}
+
+type TagMetadata struct {
+	Name        string `json:"name"`
+	Summary     string `json:"summary"`
+	PublicLink  string `json:"public_url"`
+	Description string `json:"description"`
+	Color       string `json:"color"`
+}
+
+type TagMetadataSlice []TagMetadata
+
+func (s *TagMetadataSlice) Scan(src interface{}) error {
+	switch v := src.(type) {
+	case []byte:
+		err := json.Unmarshal(v, s)
+		if err != nil {
+			return err
+		}
+		// if no tags were found we will get back an empty TagMetadata, we don't want that
+		if len(*s) == 1 && (*s)[0].Name == "" {
+			*s = nil
+		}
+		return nil
+	case string:
+		return json.Unmarshal([]byte(v), s)
+	}
+	return errors.New("type assertion failed")
 }
 
 type WeiString struct {

@@ -23,7 +23,6 @@ import (
 	"github.com/Prajjawalk/zond-indexer/utils"
 	"github.com/ethereum/go-ethereum/common"
 	"github.com/gin-gonic/gin"
-	"github.com/gorilla/mux"
 	"github.com/jmoiron/sqlx"
 	"github.com/lib/pq"
 	utilMath "github.com/protolambda/zrnt/eth2/util/math"
@@ -39,21 +38,19 @@ import (
 // @Success 200 {object} types.ApiResponse{data=types.APIEpochResponse} "Success"
 // @Failure 400 {object} types.ApiResponse "Failure"
 // @Failure 500 {object} types.ApiResponse "Server Error"
-// @Router /api/v1/epoch/{epoch} [get]
+// @Router /api/v1/epoch/:epoch [get]
 func ApiEpoch(c *gin.Context) {
 	w := c.Writer
 	r := c.Request
 	w.Header().Set("Content-Type", "application/json")
 
-	vars := mux.Vars(r)
-
-	epoch, err := strconv.ParseInt(vars["epoch"], 10, 64)
-	if err != nil && vars["epoch"] != "latest" && vars["epoch"] != "finalized" {
+	epoch, err := strconv.ParseInt(c.Param("epoch"), 10, 64)
+	if err != nil && c.Param("epoch") != "latest" && c.Param("epoch") != "finalized" {
 		sendErrorResponse(w, r.URL.String(), "invalid epoch provided")
 		return
 	}
 
-	if vars["epoch"] == "latest" {
+	if c.Param("epoch") == "latest" {
 		// err = db.ReaderDb.Get(&epoch, "SELECT MAX(epoch) FROM epochs")
 		// if err != nil {
 		// 	sendErrorResponse(w, r.URL.String(), "unable to retrieve latest epoch number")
@@ -62,7 +59,7 @@ func ApiEpoch(c *gin.Context) {
 		epoch = int64(services.LatestEpoch())
 	}
 
-	if vars["epoch"] == "finalized" {
+	if c.Param("epoch") == "finalized" {
 		epoch = int64(services.LatestFinalizedEpoch())
 	}
 
@@ -105,24 +102,23 @@ func ApiEpoch(c *gin.Context) {
 // @Param  epoch path string true "Epoch number, the string latest or string finalized"
 // @Success 200 {object} types.ApiResponse{data=[]types.APISlotResponse}
 // @Failure 400 {object} types.ApiResponse
-// @Router /api/v1/epoch/{epoch}/slots [get]
+// @Router /api/v1/epoch/:epoch/slots [get]
 func ApiEpochSlots(c *gin.Context) {
 	w := c.Writer
 	r := c.Request
 	w.Header().Set("Content-Type", "application/json")
-	vars := mux.Vars(r)
 
-	epoch, err := strconv.ParseInt(vars["epoch"], 10, 64)
-	if err != nil && vars["epoch"] != "latest" && vars["epoch"] != "finalized" {
+	epoch, err := strconv.ParseInt(c.Param("epoch"), 10, 64)
+	if err != nil && c.Param("epoch") != "latest" && c.Param("epoch") != "finalized" {
 		sendErrorResponse(w, r.URL.String(), "invalid epoch provided")
 		return
 	}
 
-	if vars["epoch"] == "latest" {
+	if c.Param("epoch") == "latest" {
 		epoch = int64(services.LatestEpoch())
 	}
 
-	if vars["epoch"] == "finalized" {
+	if c.Param("epoch") == "finalized" {
 		epoch = int64(services.LatestFinalizedEpoch())
 	}
 
@@ -160,14 +156,12 @@ func ApiSlots(c *gin.Context) {
 	r := c.Request
 	w.Header().Set("Content-Type", "application/json")
 
-	vars := mux.Vars(r)
-
-	slotOrHash := strings.Replace(vars["slotOrHash"], "0x", "", -1)
+	slotOrHash := strings.Replace(c.Param("slot"), "0x", "", -1)
 	blockSlot := int64(-1)
 	blockRootHash, err := hex.DecodeString(slotOrHash)
 	if slotOrHash != "latest" && (err != nil || len(slotOrHash) != 64) {
 		blockRootHash = []byte{}
-		blockSlot, err = strconv.ParseInt(vars["slotOrHash"], 10, 64)
+		blockSlot, err = strconv.ParseInt(c.Param("slot"), 10, 64)
 		if err != nil {
 			sendErrorResponse(w, r.URL.String(), "could not parse slot number")
 			return
@@ -259,15 +253,13 @@ func ApiSlotAttestations(c *gin.Context) {
 	r := c.Request
 	w.Header().Set("Content-Type", "application/json")
 
-	vars := mux.Vars(r)
-
-	slot, err := strconv.ParseInt(vars["slot"], 10, 64)
-	if err != nil && vars["slot"] != "latest" {
+	slot, err := strconv.ParseInt(c.Param("slot"), 10, 64)
+	if err != nil && c.Param("slot") != "latest" {
 		sendErrorResponse(w, r.URL.String(), "invalid block slot provided")
 		return
 	}
 
-	if vars["slot"] == "latest" {
+	if c.Param("slot") == "latest" {
 		slot = int64(services.LatestSlot())
 	}
 
@@ -306,9 +298,7 @@ func ApiSlotAttesterSlashings(c *gin.Context) {
 	r := c.Request
 	w.Header().Set("Content-Type", "application/json")
 
-	vars := mux.Vars(r)
-
-	slot, err := strconv.ParseInt(vars["slot"], 10, 64)
+	slot, err := strconv.ParseInt(c.Param("slot"), 10, 64)
 	if err != nil {
 		sendErrorResponse(w, r.URL.String(), "invalid block slot provided")
 		return
@@ -340,7 +330,6 @@ func ApiSlotDeposits(c *gin.Context) {
 	r := c.Request
 	w.Header().Set("Content-Type", "application/json")
 
-	vars := mux.Vars(r)
 	q := r.URL.Query()
 
 	limitQuery := q.Get("limit")
@@ -364,7 +353,7 @@ func ApiSlotDeposits(c *gin.Context) {
 		limit = 100 + offset
 	}
 
-	slot, err := strconv.ParseInt(vars["slot"], 10, 64)
+	slot, err := strconv.ParseInt(c.Param("slot"), 10, 64)
 	if err != nil {
 		sendErrorResponse(w, r.URL.String(), "invalid block slot provided")
 		return
@@ -395,9 +384,7 @@ func ApiSlotProposerSlashings(c *gin.Context) {
 	r := c.Request
 	w.Header().Set("Content-Type", "application/json")
 
-	vars := mux.Vars(r)
-
-	slot, err := strconv.ParseInt(vars["slot"], 10, 64)
+	slot, err := strconv.ParseInt(c.Param("slot"), 10, 64)
 	if err != nil {
 		sendErrorResponse(w, r.URL.String(), "invalid block slot provided")
 		return
@@ -428,9 +415,7 @@ func ApiSlotVoluntaryExits(c *gin.Context) {
 	r := c.Request
 	w.Header().Set("Content-Type", "application/json")
 
-	vars := mux.Vars(r)
-
-	slot, err := strconv.ParseInt(vars["slot"], 10, 64)
+	slot, err := strconv.ParseInt(c.Param("slot"), 10, 64)
 	if err != nil {
 		sendErrorResponse(w, r.URL.String(), "invalid block slot provided")
 		return
@@ -460,9 +445,8 @@ func ApiSlotWithdrawals(c *gin.Context) {
 	w := c.Writer
 	r := c.Request
 	w.Header().Set("Content-Type", "application/json")
-	vars := mux.Vars(r)
 
-	slot, err := strconv.ParseInt(vars["slot"], 10, 64)
+	slot, err := strconv.ParseInt(c.Param("slot"), 10, 64)
 	if err != nil {
 		sendErrorResponse(w, r.URL.String(), "invalid block slot provided")
 		return
@@ -495,17 +479,15 @@ func ApiSyncCommittee(c *gin.Context) {
 	r := c.Request
 	w.Header().Set("Content-Type", "application/json")
 
-	vars := mux.Vars(r)
-
-	period, err := strconv.ParseUint(vars["period"], 10, 64)
-	if err != nil && vars["period"] != "latest" && vars["period"] != "next" {
+	period, err := strconv.ParseUint(c.Param("period"), 10, 64)
+	if err != nil && c.Param("period") != "latest" && c.Param("period") != "next" {
 		sendErrorResponse(w, r.URL.String(), "invalid epoch provided")
 		return
 	}
 
-	if vars["period"] == "latest" {
+	if c.Param("period") == "latest" {
 		period = utils.SyncPeriodOfEpoch(services.LatestEpoch())
-	} else if vars["period"] == "next" {
+	} else if c.Param("period") == "next" {
 		period = utils.SyncPeriodOfEpoch(services.LatestEpoch()) + 1
 	}
 
@@ -675,10 +657,9 @@ func ApiValidatorDeposits(c *gin.Context) {
 	r := c.Request
 	w.Header().Set("Content-Type", "application/json")
 
-	vars := mux.Vars(r)
 	maxValidators := getUserPremium(r).MaxValidators
 
-	pubkeys, err := parseApiValidatorParamToPubkeys(vars["indexOrPubkey"], maxValidators)
+	pubkeys, err := parseApiValidatorParamToPubkeys(c.Param("indexOrPubkey"), maxValidators)
 	if err != nil {
 		sendErrorResponse(w, r.URL.String(), err.Error())
 		return
@@ -712,10 +693,9 @@ func ApiValidatorAttestations(c *gin.Context) {
 	w.Header().Set("Content-Type", "application/json")
 
 	j := json.NewEncoder(w)
-	vars := mux.Vars(r)
 	maxValidators := getUserPremium(r).MaxValidators
 
-	queryIndices, err := parseApiValidatorParamToIndices(vars["indexOrPubkey"], maxValidators)
+	queryIndices, err := parseApiValidatorParamToIndices(c.Param("indexOrPubkey"), maxValidators)
 	if err != nil {
 		sendErrorResponse(w, r.URL.String(), err.Error())
 		return
@@ -781,7 +761,6 @@ func ApiValidatorProposals(c *gin.Context) {
 	r := c.Request
 	w.Header().Set("Content-Type", "application/json")
 
-	vars := mux.Vars(r)
 	maxValidators := getUserPremium(r).MaxValidators
 	q := r.URL.Query()
 
@@ -797,7 +776,7 @@ func ApiValidatorProposals(c *gin.Context) {
 		}
 	}
 
-	queryIndices, err := parseApiValidatorParamToIndices(vars["indexOrPubkey"], maxValidators)
+	queryIndices, err := parseApiValidatorParamToIndices(c.Param("indexOrPubkey"), maxValidators)
 	if err != nil {
 		sendErrorResponse(w, r.URL.String(), err.Error())
 		return
@@ -871,10 +850,9 @@ func ApiValidatorIncomeDetailsHistory(c *gin.Context) {
 	w.Header().Set("Content-Type", "application/json")
 
 	j := json.NewEncoder(w)
-	vars := mux.Vars(r)
 	maxValidators := getUserPremium(r).MaxValidators
 
-	queryIndices, err := parseApiValidatorParamToIndices(vars["indexOrPubkey"], maxValidators)
+	queryIndices, err := parseApiValidatorParamToIndices(c.Param("indexOrPubkey"), maxValidators)
 	if err != nil {
 		sendErrorResponse(w, r.URL.String(), err.Error())
 		return
@@ -950,10 +928,9 @@ func ApiValidatorWithdrawals(c *gin.Context) {
 	r := c.Request
 	w.Header().Set("Content-Type", "application/json")
 
-	vars := mux.Vars(r)
 	maxValidators := getUserPremium(r).MaxValidators
 
-	queryIndices, err := parseApiValidatorParamToIndices(vars["indexOrPubkey"], maxValidators)
+	queryIndices, err := parseApiValidatorParamToIndices(c.Param("indexOrPubkey"), maxValidators)
 	if err != nil {
 		sendErrorResponse(w, r.URL.String(), err.Error())
 		return
@@ -1025,7 +1002,6 @@ func ApiValidatorBalanceHistory(c *gin.Context) {
 	w.Header().Set("Content-Type", "application/json")
 
 	j := json.NewEncoder(w)
-	vars := mux.Vars(r)
 	maxValidators := getUserPremium(r).MaxValidators
 
 	latestEpoch, limit, err := getBalanceHistoryQueryParameters(r.URL.Query())
@@ -1034,7 +1010,7 @@ func ApiValidatorBalanceHistory(c *gin.Context) {
 		return
 	}
 
-	queryIndices, err := parseApiValidatorParamToIndices(vars["indexOrPubkey"], maxValidators)
+	queryIndices, err := parseApiValidatorParamToIndices(c.Param("indexOrPubkey"), maxValidators)
 	if err != nil {
 		sendErrorResponse(w, r.URL.String(), err.Error())
 		return
@@ -1134,10 +1110,9 @@ func ApiValidatorPerformance(c *gin.Context) {
 	r := c.Request
 	w.Header().Set("Content-Type", "application/json")
 
-	vars := mux.Vars(r)
 	maxValidators := getUserPremium(r).MaxValidators
 
-	queryIndices, err := parseApiValidatorParamToIndices(vars["indexOrPubkey"], maxValidators)
+	queryIndices, err := parseApiValidatorParamToIndices(c.Param("indexOrPubkey"), maxValidators)
 	if err != nil {
 		sendErrorResponse(w, r.URL.String(), err.Error())
 		return
@@ -1212,11 +1187,10 @@ func ApiValidatorAttestationEffectiveness(c *gin.Context) {
 	w.Header().Set("Content-Type", "application/json")
 
 	j := json.NewEncoder(w)
-	vars := mux.Vars(r)
 
 	maxValidators := getUserPremium(r).MaxValidators
 
-	queryIndices, err := parseApiValidatorParamToIndices(vars["indexOrPubkey"], maxValidators)
+	queryIndices, err := parseApiValidatorParamToIndices(c.Param("indexOrPubkey"), maxValidators)
 	if err != nil {
 		sendErrorResponse(w, r.URL.String(), err.Error())
 		return
@@ -1255,11 +1229,10 @@ func ApiValidatorAttestationEfficiency(c *gin.Context) {
 	w.Header().Set("Content-Type", "application/json")
 
 	j := json.NewEncoder(w)
-	vars := mux.Vars(r)
 
 	maxValidators := getUserPremium(r).MaxValidators
 
-	queryIndices, err := parseApiValidatorParamToIndices(vars["indexOrPubkey"], maxValidators)
+	queryIndices, err := parseApiValidatorParamToIndices(c.Param("indexOrPubkey"), maxValidators)
 	if err != nil {
 		sendErrorResponse(w, r.URL.String(), err.Error())
 		return
@@ -1310,10 +1283,9 @@ func ApiValidatorExecutionPerformance(c *gin.Context) {
 	w.Header().Set("Content-Type", "application/json")
 
 	j := json.NewEncoder(w)
-	vars := mux.Vars(r)
 	maxValidators := getUserPremium(r).MaxValidators
 
-	queryIndices, err := parseApiValidatorParamToIndices(vars["indexOrPubkey"], maxValidators)
+	queryIndices, err := parseApiValidatorParamToIndices(c.Param("indexOrPubkey"), maxValidators)
 	if err != nil {
 		sendErrorResponse(w, r.URL.String(), err.Error())
 		return
@@ -1339,9 +1311,7 @@ func ApiValidatorExecutionPerformance(c *gin.Context) {
 // @Failure 400 {object} types.ApiResponse
 // @Router /api/v1/validator/{indexOrPubkey} [get]
 func ApiValidatorGet(c *gin.Context) {
-	w := c.Writer
-	r := c.Request
-	apiValidator(w, r)
+	apiValidator(c)
 }
 
 // ApiValidator godoc
@@ -1353,16 +1323,14 @@ func ApiValidatorGet(c *gin.Context) {
 // @Failure 400 {object} types.ApiResponse
 // @Router /api/v1/validator/{indexOrPubkey} [post]
 func ApiValidatorPost(c *gin.Context) {
-	w := c.Writer
-	r := c.Request
-	apiValidator(w, r)
+	apiValidator(c)
 }
 
 // This endpoint supports both GET and POST but requires different swagger descriptions based on the type
-func apiValidator(w http.ResponseWriter, r *http.Request) {
+func apiValidator(c *gin.Context) {
+	w := c.Writer
+	r := c.Request
 	w.Header().Set("Content-Type", "application/json")
-
-	vars := mux.Vars(r)
 
 	var maxValidators int
 	if r.Method == http.MethodGet {
@@ -1371,7 +1339,7 @@ func apiValidator(w http.ResponseWriter, r *http.Request) {
 		maxValidators = math.MaxInt
 	}
 
-	queryIndices, err := parseApiValidatorParamToIndices(vars["indexOrPubkey"], maxValidators)
+	queryIndices, err := parseApiValidatorParamToIndices(c.Param("indexOrPubkey"), maxValidators)
 	if err != nil {
 		sendErrorResponse(w, r.URL.String(), err.Error())
 		return
@@ -1474,7 +1442,6 @@ func ApiValidatorDailyStats(c *gin.Context) {
 	r := c.Request
 	w.Header().Set("Content-Type", "application/json")
 
-	vars := mux.Vars(r)
 	q := r.URL.Query()
 
 	latestEpoch := services.LatestEpoch()
@@ -1510,7 +1477,7 @@ func ApiValidatorDailyStats(c *gin.Context) {
 		}
 	}
 
-	index, err := strconv.ParseUint(vars["index"], 10, 64)
+	index, err := strconv.ParseUint(c.Param("index"), 10, 64)
 	if err != nil {
 		sendErrorResponse(w, r.URL.String(), "invalid validator index")
 		return
@@ -1599,9 +1566,7 @@ func ApiValidatorByEth1Address(c *gin.Context) {
 		limit = 2000 + offset
 	}
 
-	vars := mux.Vars(r)
-
-	eth1Address, err := hex.DecodeString(strings.Replace(vars["address"], "0x", "", -1))
+	eth1Address, err := hex.DecodeString(strings.Replace(c.Param("address"), "0x", "", -1))
 	if err != nil {
 		sendErrorResponse(w, r.URL.String(), "invalid eth1 address provided")
 		return
@@ -1662,10 +1627,9 @@ func ApiWithdrawalCredentialsValidators(c *gin.Context) {
 	r := c.Request
 	w.Header().Set("Content-Type", "application/json")
 
-	vars := mux.Vars(r)
 	q := r.URL.Query()
 
-	credentialsOrAddressString := vars["withdrawalCredentialsOrEth1address"]
+	credentialsOrAddressString := c.Param("withdrawalCredentialsOrEth1address")
 	credentialsOrAddressString = strings.ToLower(credentialsOrAddressString)
 
 	if !utils.IsValidEth1Address(credentialsOrAddressString) &&
@@ -1928,10 +1892,9 @@ func ApiRocketpoolValidators(c *gin.Context) {
 	w.Header().Set("Content-Type", "application/json")
 
 	j := json.NewEncoder(w)
-	vars := mux.Vars(r)
 	maxValidators := getUserPremium(r).MaxValidators
 
-	queryIndices, err := parseApiValidatorParamToIndices(vars["indexOrPubkey"], maxValidators)
+	queryIndices, err := parseApiValidatorParamToIndices(c.Param("indexOrPubkey"), maxValidators)
 	if err != nil {
 		sendErrorResponse(w, r.URL.String(), err.Error())
 		return
@@ -1985,11 +1948,10 @@ func ApiEthStoreDay(c *gin.Context) {
 		FROM eth_store_stats e
 		WHERE validator = -1 `
 
-	vars := mux.Vars(r)
-	if vars["day"] == "latest" {
+	if c.Param("day") == "latest" {
 		rows, err = db.ReaderDb.Query(query + ` ORDER BY day DESC LIMIT 1;`)
 	} else {
-		day, e := strconv.ParseInt(vars["day"], 10, 64)
+		day, e := strconv.ParseInt(c.Param("day"), 10, 64)
 		if e != nil {
 			sendErrorResponse(w, r.URL.String(), "invalid day provided")
 			return

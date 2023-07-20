@@ -7,10 +7,7 @@ import (
 	"github.com/Prajjawalk/zond-indexer/db"
 	"github.com/Prajjawalk/zond-indexer/utils"
 	"github.com/Prajjawalk/zond-indexer/version"
-	"github.com/sirupsen/logrus"
 )
-
-var logger = logrus.New().WithField("module", "services")
 
 // Report the status of a particular service, will add current Pid and executable name
 func ReportStatus(name, status string, metadata *json.RawMessage) {

@@ -12,7 +12,6 @@ import (
 	"github.com/Prajjawalk/zond-indexer/types"
 	"github.com/ethereum/go-ethereum/common"
 	"github.com/gin-gonic/gin"
-	"github.com/gorilla/mux"
 	"github.com/lib/pq"
 	"golang.org/x/exp/maps"
 )
@@ -30,9 +29,7 @@ func ApiEth1Deposit(c *gin.Context) {
 	r := c.Request
 	w.Header().Set("Content-Type", "application/json")
 
-	vars := mux.Vars(r)
-
-	eth1TxHash, err := hex.DecodeString(strings.Replace(vars["txhash"], "0x", "", -1))
+	eth1TxHash, err := hex.DecodeString(strings.Replace(c.Param("txhash"), "0x", "", -1))
 	if err != nil {
 		sendErrorResponse(w, r.URL.String(), "invalid eth1 tx hash provided")
 		return

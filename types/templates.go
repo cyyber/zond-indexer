@@ -2,8 +2,10 @@ package types
 
 import (
 	"database/sql"
+	"fmt"
 	"html/template"
 	"math/big"
+	"strconv"
 	"time"
 
 	"github.com/ethereum/go-ethereum/accounts/abi"
@@ -336,18 +338,6 @@ type BLSChange struct {
 	Signature      []byte `db:"signature" json:"signature,omitempty"`
 }
 
-type ExplorerConfigurationCategory string
-type ExplorerConfigurationKey string
-type ExplorerConfigValue struct {
-	Value    string `db:"value"`
-	DataType string `db:"data_type"`
-}
-type ExplorerConfig struct {
-	Category ExplorerConfigurationCategory `db:"category"`
-	Key      ExplorerConfigurationKey      `db:"key"`
-	ExplorerConfigValue
-}
-
 type ValidatorsBLSChange struct {
 	Slot                     uint64 `db:"slot" json:"slot,omitempty"`
 	BlockRoot                []byte `db:"block_root" json:"blockroot,omitempty"`
@@ -378,4 +368,299 @@ type DataTableSaveState struct {
 	Order   [][]string                  `json:"order"`  // 2D array of column ordering information (see `order` option)
 	Search  DataTableSaveStateSearch    `json:"search"`
 	Columns []DataTableSaveStateColumns `json:"columns"`
+}
+
+// GenericChartData is a struct to hold chart data
+type GenericChartData struct {
+	IsNormalChart                   bool
+	ShowGapHider                    bool
+	XAxisLabelsFormatter            template.JS
+	TooltipFormatter                template.JS
+	TooltipShared                   bool
+	TooltipUseHTML                  bool
+	TooltipSplit                    bool
+	TooltipFollowPointer            bool
+	PlotOptionsSeriesEventsClick    template.JS
+	PlotOptionsPie                  template.JS
+	DataLabelsEnabled               bool
+	DataLabelsFormatter             template.JS
+	PlotOptionsSeriesCursor         string
+	Title                           string                    `json:"title"`
+	Subtitle                        string                    `json:"subtitle"`
+	XAxisTitle                      string                    `json:"x_axis_title"`
+	YAxisTitle                      string                    `json:"y_axis_title"`
+	Type                            string                    `json:"type"`
+	StackingMode                    string                    `json:"stacking_mode"`
+	ColumnDataGroupingApproximation string                    // "average", "averages", "open", "high", "low", "close" and "sum"
+	Series                          []*GenericChartDataSeries `json:"series"`
+	Drilldown                       interface{}               `json:"drilldown"`
+}
+
+// GenericChartDataSeries is a struct to hold chart series data
+type GenericChartDataSeries struct {
+	Name  string      `json:"name"`
+	Data  interface{} `json:"data"`
+	Stack string      `json:"stack,omitempty"`
+	Type  string      `json:"type,omitempty"`
+	Color string      `json:"color,omitempty"`
+}
+
+// ChartsPageDataChart is a struct to hold a chart for the charts-page
+type ChartsPageDataChart struct {
+	Order  int
+	Path   string
+	Data   *GenericChartData
+	Height int
+}
+
+type Stats struct {
+	TopDepositors                  *[]StatsTopDepositors
+	InvalidDepositCount            *uint64 `db:"count"`
+	UniqueValidatorCount           *uint64 `db:"count"`
+	TotalValidatorCount            *uint64 `db:"count"`
+	ActiveValidatorCount           *uint64 `db:"count"`
+	PendingValidatorCount          *uint64 `db:"count"`
+	ValidatorChurnLimit            *uint64
+	LatestValidatorWithdrawalIndex *uint64 `db:"index"`
+	WithdrawableValidatorCount     *uint64 `db:"count"`
+	// WithdrawableAmount             *uint64 `db:"amount"`
+	PendingBLSChangeValidatorCount *uint64 `db:"count"`
+	NonWithdrawableCount           *uint64 `db:"count"`
+	TotalAmountWithdrawn           *uint64 `db:"amount"`
+	WithdrawalCount                *uint64 `db:"count"`
+	TotalAmountDeposited           *uint64 `db:"amount"`
+	BLSChangeCount                 *uint64 `db:"count"`
+}
+
+type StatsTopDepositors struct {
+	Address      string `db:"from_address"`
+	DepositCount uint64 `db:"count"`
+}
+
+type PoolsResp struct {
+	PoolsDistribution       ChartsPageDataChart
+	HistoricPoolPerformance ChartsPageDataChart
+	PoolInfos               []*PoolInfo
+}
+
+type PoolInfo struct {
+	Name                   string  `db:"name"`
+	Count                  int64   `db:"count"`
+	AvgPerformance31d      float64 `db:"avg_performance_31d"`
+	AvgPerformance7d       float64 `db:"avg_performance_7d"`
+	AvgPerformance1d       float64 `db:"avg_performance_1d"`
+	EthstoreCompoarison1d  float64
+	EthstoreCompoarison7d  float64
+	EthstoreCompoarison31d float64
+}
+
+// IndexPageData is a struct to hold info for the main web page
+type IndexPageData struct {
+	NetworkName               string `json:"networkName"`
+	DepositContract           string `json:"depositContract"`
+	ShowSyncingMessage        bool
+	CurrentEpoch              uint64                 `json:"current_epoch"`
+	CurrentFinalizedEpoch     uint64                 `json:"current_finalized_epoch"`
+	CurrentSlot               uint64                 `json:"current_slot"`
+	ScheduledCount            uint8                  `json:"scheduled_count"`
+	FinalityDelay             uint64                 `json:"finality_delay"`
+	ActiveValidators          uint64                 `json:"active_validators"`
+	EnteringValidators        uint64                 `json:"entering_validators"`
+	ExitingValidators         uint64                 `json:"exiting_validators"`
+	StakedEther               string                 `json:"staked_ether"`
+	AverageBalance            string                 `json:"average_balance"`
+	DepositedTotal            float64                `json:"deposit_total"`
+	DepositThreshold          float64                `json:"deposit_threshold"`
+	ValidatorsRemaining       float64                `json:"validators_remaining"`
+	NetworkStartTs            int64                  `json:"network_start_ts"`
+	MinGenesisTime            int64                  `json:"minGenesisTime"`
+	Blocks                    []*IndexPageDataBlocks `json:"blocks"`
+	Epochs                    []*IndexPageDataEpochs `json:"epochs"`
+	StakedEtherChartData      [][]float64            `json:"staked_ether_chart_data"`
+	ActiveValidatorsChartData [][]float64            `json:"active_validators_chart_data"`
+	Subtitle                  template.HTML          `json:"subtitle"`
+	Genesis                   bool                   `json:"genesis"`
+	GenesisPeriod             bool                   `json:"genesis_period"`
+	Mainnet                   bool                   `json:"mainnet"`
+	DepositChart              *ChartsPageDataChart
+	DepositDistribution       *ChartsPageDataChart
+	Countdown                 interface{}
+	SlotVizData               *SlotVizPageData `json:"slotVizData"`
+}
+
+type SlotVizPageData struct {
+	Epochs   []*SlotVizEpochs
+	Selector string
+	Config   ExplorerConfigurationKeyMap
+}
+
+type IndexPageDataEpochs struct {
+	Epoch                            uint64        `json:"epoch"`
+	Ts                               time.Time     `json:"ts"`
+	Finalized                        bool          `json:"finalized"`
+	FinalizedFormatted               template.HTML `json:"finalized_formatted"`
+	EligibleEther                    uint64        `json:"eligibleether"`
+	EligibleEtherFormatted           template.HTML `json:"eligibleether_formatted"`
+	GlobalParticipationRate          float64       `json:"globalparticipationrate"`
+	GlobalParticipationRateFormatted template.HTML `json:"globalparticipationrate_formatted"`
+	VotedEther                       uint64        `json:"votedether"`
+	VotedEtherFormatted              template.HTML `json:"votedether_formatted"`
+}
+
+// IndexPageDataBlocks is a struct to hold detail data for the main web page
+type IndexPageDataBlocks struct {
+	Epoch                uint64        `json:"epoch"`
+	Slot                 uint64        `json:"slot"`
+	Ts                   time.Time     `json:"ts"`
+	Proposer             uint64        `db:"proposer" json:"proposer"`
+	ProposerFormatted    template.HTML `json:"proposer_formatted"`
+	BlockRoot            []byte        `db:"blockroot" json:"block_root"`
+	BlockRootFormatted   string        `json:"block_root_formatted"`
+	ParentRoot           []byte        `db:"parentroot" json:"parent_root"`
+	Attestations         uint64        `db:"attestationscount" json:"attestations"`
+	Deposits             uint64        `db:"depositscount" json:"deposits"`
+	Withdrawals          uint64        `db:"withdrawalcount" json:"withdrawals"`
+	Exits                uint64        `db:"voluntaryexitscount" json:"exits"`
+	Proposerslashings    uint64        `db:"proposerslashingscount" json:"proposerslashings"`
+	Attesterslashings    uint64        `db:"attesterslashingscount" json:"attesterslashings"`
+	SyncAggParticipation float64       `db:"syncaggregate_participation" json:"sync_aggregate_participation"`
+	Status               uint64        `db:"status" json:"status"`
+	StatusFormatted      template.HTML `json:"status_formatted"`
+	Votes                uint64        `db:"votes" json:"votes"`
+	Graffiti             []byte        `db:"graffiti"`
+	ProposerName         string        `db:"name"`
+	ExecutionBlockNumber int           `db:"exec_block_number" json:"exec_block_number"`
+}
+
+// IndexPageEpochHistory is a struct to hold the epoch history for the main web page
+type IndexPageEpochHistory struct {
+	Epoch                   uint64 `db:"epoch"`
+	ValidatorsCount         uint64 `db:"validatorscount"`
+	EligibleEther           uint64 `db:"eligibleether"`
+	Finalized               bool   `db:"finalized"`
+	AverageValidatorBalance uint64 `db:"averagevalidatorbalance"`
+}
+
+type ExplorerConfigurationCategory string
+type ExplorerConfigurationKey string
+type ExplorerConfigValue struct {
+	Value    string `db:"value"`
+	DataType string `db:"data_type"`
+}
+type ExplorerConfig struct {
+	Category ExplorerConfigurationCategory `db:"category"`
+	Key      ExplorerConfigurationKey      `db:"key"`
+	ExplorerConfigValue
+}
+type ExplorerConfigurationKeyMap map[ExplorerConfigurationKey]ExplorerConfigValue
+type ExplorerConfigurationMap map[ExplorerConfigurationCategory]ExplorerConfigurationKeyMap
+
+func (configMap ExplorerConfigurationMap) GetConfigValue(category ExplorerConfigurationCategory, configKey ExplorerConfigurationKey) (ExplorerConfigValue, error) {
+	configValue := ExplorerConfigValue{}
+	keyMap, ok := configMap[category]
+	if ok {
+		configValue, ok = keyMap[configKey]
+		if ok {
+			return configValue, nil
+		}
+	}
+	return configValue, fmt.Errorf("config value for %s %s not found", category, configKey)
+}
+
+func (configMap ExplorerConfigurationMap) GetUInt64Value(category ExplorerConfigurationCategory, configKey ExplorerConfigurationKey) (uint64, error) {
+	configValue, err := configMap.GetConfigValue(category, configKey)
+	if err == nil {
+		if configValue.DataType != "int" {
+			return 0, fmt.Errorf("wrong data type for %s %s, got %s, expected %s", category, configKey, configValue.DataType, "int")
+		} else {
+			return strconv.ParseUint(configValue.Value, 10, 64)
+		}
+	}
+	return 0, err
+}
+
+func (configMap ExplorerConfigurationMap) GetStringValue(category ExplorerConfigurationCategory, configKey ExplorerConfigurationKey) (string, error) {
+	configValue, err := configMap.GetConfigValue(category, configKey)
+	return configValue.Value, err
+}
+
+type EthStoreStatistics struct {
+	EffectiveBalances         [][]float64
+	TotalRewards              [][]float64
+	APRs                      [][]float64
+	YesterdayRewards          float64
+	YesterdayEffectiveBalance float64
+	ProjectedAPR              float64
+	YesterdayTs               int64
+	StartEpoch                uint64
+}
+
+type BurnPageDataBlock struct {
+	Number        int64     `json:"number"`
+	Hash          string    `json:"hash"`
+	GasTarget     int64     `json:"gas_target" db:"gaslimit"`
+	GasUsed       int64     `json:"gas_used" db:"gasused"`
+	Rewards       float64   `json:"mining_reward" db:"miningreward"`
+	Txn           int       `json:"tx_count" db:"tx_count"`
+	Age           time.Time `json:"time" db:"time"`
+	BaseFeePerGas float64   `json:"base_fee_per_gas" db:"basefeepergas"`
+	BurnedFees    float64   `json:"burned_fees" db:"burnedfees"`
+}
+
+type BurnPageData struct {
+	TotalBurned      float64              `json:"total_burned"`
+	Blocks           []*BurnPageDataBlock `json:"blocks"`
+	BaseFeeTrend     int                  `json:"base_fee_trend"`
+	BurnRate1h       float64              `json:"burn_rate_1_h"`
+	BurnRate24h      float64              `json:"burn_rate_24_h"`
+	BlockUtilization float64              `json:"block_utilization"`
+	Emission         float64              `json:"emission"`
+	Price            float64              `json:"price_usd"`
+	Currency         string               `json:"currency"`
+}
+
+type RelaysResp struct {
+	RelaysInfoContainers [3]RelayInfoContainer
+	RecentBlocks         []*RelaysRespBlock
+	TopBlocks            []*RelaysRespBlock
+	LastUpdated          time.Time
+	TopBuilders          []*struct {
+		Tags       TagMetadataSlice `db:"tags"`
+		Builder    []byte           `db:"builder_pubkey"`
+		BlockCount uint64           `db:"c"`
+		LatestSlot uint64           `db:"latest_slot"`
+		BlockPerc  float64
+	}
+}
+
+type RelaysRespBlock struct {
+	Tags                 TagMetadataSlice `db:"tags"`
+	Value                WeiString        `db:"value"`
+	Slot                 uint64           `db:"slot"`
+	Builder              []byte           `db:"builder_pubkey"`
+	ProposerFeeRecipient []byte           `db:"proposer_fee_recipient"`
+	Proposer             uint64           `db:"proposer"`
+	BlockExtraData       string           `db:"block_extra_data"`
+}
+
+type RelayInfoContainer struct {
+	Days                 uint64
+	IsFirst              bool
+	RelaysInfo           []*RelayInfo
+	NetworkParticipation float64
+}
+
+type RelayInfo struct {
+	RelayID        string         `db:"relay_id"`
+	Name           sql.NullString `db:"name"`
+	Link           sql.NullString `db:"link"`
+	Censors        sql.NullBool   `db:"censors"`
+	Ethical        sql.NullBool   `db:"ethical"`
+	BlockCount     uint64         `db:"block_count"`
+	UniqueBuilders uint64         `db:"unique_builders"`
+	NetworkUsage   float64        `db:"network_usage"`
+	TotalValue     WeiString      `db:"total_value"`
+	AverageValue   WeiString      `db:"avg_value"`
+	MaxValue       WeiString      `db:"max_value"`
+	MaxValueSlot   uint64         `db:"max_value_slot"`
 }

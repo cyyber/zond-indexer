@@ -35,7 +35,6 @@ import (
 	_ "net/http/pprof"
 
 	_ "github.com/Prajjawalk/zond-indexer/docs"
-
 	_ "github.com/jackc/pgx/v4/stdlib"
 	swaggerfiles "github.com/swaggo/files"
 )
@@ -271,7 +270,7 @@ func main() {
 
 		apiV1Router := router.Group("/api/v1")
 		router.GET("/api/v1/docs/*any", ginSwagger.WrapHandler(swaggerfiles.Handler))
-		apiV1Router.GET("/epoch/{epoch}", handlers.ApiEpoch)
+		apiV1Router.GET("/epoch/:epoch", handlers.ApiEpoch)
 
 		apiV1Router.GET("/epoch/:epoch/blocks", handlers.ApiEpochSlots)
 		apiV1Router.GET("/epoch/:epoch/slots", handlers.ApiEpochSlots)
@@ -283,24 +282,24 @@ func main() {
 		apiV1Router.GET("/slot/:slot/voluntaryexits", handlers.ApiSlotVoluntaryExits)
 		apiV1Router.GET("/slot/:slot/withdrawals", handlers.ApiSlotWithdrawals)
 
-		apiV1Router.GET("/sync_committee/{period}", handlers.ApiSyncCommittee)
-		apiV1Router.GET("/eth1deposit/{txhash}", handlers.ApiEth1Deposit)
+		apiV1Router.GET("/sync_committee/:period", handlers.ApiSyncCommittee)
+		apiV1Router.GET("/eth1deposit/:txhash", handlers.ApiEth1Deposit)
 		apiV1Router.GET("/validator/leaderboard", handlers.ApiValidatorLeaderboard)
-		apiV1Router.GET("/validator/{indexOrPubkey}", handlers.ApiValidatorGet)
-		apiV1Router.POST("/validator/{indexOrPubkey}", handlers.ApiValidatorPost)
-		apiV1Router.GET("/validator/{indexOrPubkey}/withdrawals", handlers.ApiValidatorWithdrawals)
-		apiV1Router.GET("/validator/{indexOrPubkey}/balancehistory", handlers.ApiValidatorBalanceHistory)
-		apiV1Router.GET("/validator/{indexOrPubkey}/incomedetailhistory", handlers.ApiValidatorIncomeDetailsHistory)
-		apiV1Router.GET("/validator/{indexOrPubkey}/performance", handlers.ApiValidatorPerformance)
-		apiV1Router.GET("/validator/{indexOrPubkey}/execution/performance", handlers.ApiValidatorExecutionPerformance)
-		apiV1Router.GET("/validator/{indexOrPubkey}/attestations", handlers.ApiValidatorAttestations)
-		apiV1Router.GET("/validator/{indexOrPubkey}/proposals", handlers.ApiValidatorProposals)
-		apiV1Router.GET("/validator/{indexOrPubkey}/deposits", handlers.ApiValidatorDeposits)
-		apiV1Router.GET("/validator/{indexOrPubkey}/attestationefficiency", handlers.ApiValidatorAttestationEfficiency)
-		apiV1Router.GET("/validator/{indexOrPubkey}/attestationeffectiveness", handlers.ApiValidatorAttestationEffectiveness)
-		apiV1Router.GET("/validator/stats/{index}", handlers.ApiValidatorDailyStats)
-		apiV1Router.GET("/validator/eth1/{address}", handlers.ApiValidatorByEth1Address)
-		apiV1Router.GET("/validator/withdrawalCredentials/{withdrawalCredentialsOrEth1address}", handlers.ApiWithdrawalCredentialsValidators)
+		apiV1Router.GET("/validator/:indexOrPubkey", handlers.ApiValidatorGet)
+		apiV1Router.POST("/validator/:indexOrPubkey", handlers.ApiValidatorPost)
+		apiV1Router.GET("/validator/:indexOrPubkey/withdrawals", handlers.ApiValidatorWithdrawals)
+		apiV1Router.GET("/validator/:indexOrPubkey/balancehistory", handlers.ApiValidatorBalanceHistory)
+		apiV1Router.GET("/validator/:indexOrPubkey/incomedetailhistory", handlers.ApiValidatorIncomeDetailsHistory)
+		apiV1Router.GET("/validator/:indexOrPubkey/performance", handlers.ApiValidatorPerformance)
+		apiV1Router.GET("/validator/:indexOrPubkey/execution/performance", handlers.ApiValidatorExecutionPerformance)
+		apiV1Router.GET("/validator/:indexOrPubkey/attestations", handlers.ApiValidatorAttestations)
+		apiV1Router.GET("/validator/:indexOrPubkey/proposals", handlers.ApiValidatorProposals)
+		apiV1Router.GET("/validator/:indexOrPubkey/deposits", handlers.ApiValidatorDeposits)
+		apiV1Router.GET("/validator/:indexOrPubkey/attestationefficiency", handlers.ApiValidatorAttestationEfficiency)
+		apiV1Router.GET("/validator/:indexOrPubkey/attestationeffectiveness", handlers.ApiValidatorAttestationEffectiveness)
+		apiV1Router.GET("/validator/stats/:index", handlers.ApiValidatorDailyStats)
+		apiV1Router.GET("/validator/eth1/:address", handlers.ApiValidatorByEth1Address)
+		apiV1Router.GET("/validator/withdrawalCredentials/:withdrawalCredentialsOrEth1address", handlers.ApiWithdrawalCredentialsValidators)
 		apiV1Router.GET("/validators/queue", handlers.ApiValidatorQueue)
 		// 	apiV1Router.HandleFunc("/chart/{chart}", handlers.ApiChart).Methods("GET", "OPTIONS")
 		// 	apiV1Router.HandleFunc("/user/token", handlers.APIGetToken).Methods("POST", "OPTIONS")
@@ -314,8 +313,8 @@ func main() {
 		// 	apiV1Router.HandleFunc("/client/metrics", handlers.ClientStatsPostNew).Methods("POST", "OPTIONS")
 		apiV1Router.POST("/app/dashboard", handlers.ApiDashboard)
 		apiV1Router.GET("/rocketpool/stats", handlers.ApiRocketpoolStats)
-		apiV1Router.GET("/rocketpool/validator/{indexOrPubkey}", handlers.ApiRocketpoolValidators)
-		apiV1Router.GET("/ethstore/{day}", handlers.ApiEthStoreDay)
+		apiV1Router.GET("/rocketpool/validator/:indexOrPubkey", handlers.ApiRocketpoolValidators)
+		apiV1Router.GET("/ethstore/:day", handlers.ApiEthStoreDay)
 
 		// 	apiV1Router.HandleFunc("/execution/gasnow", handlers.ApiEth1GasNowData).Methods("GET", "OPTIONS")
 		// 	// query params: token
@@ -656,21 +655,13 @@ func main() {
 		// 	//}
 		// 	//n.Use(frontendLogger)
 
-		if utils.Config.Frontend.HttpWriteTimeout == 0 {
-			utils.Config.Frontend.HttpIdleTimeout = time.Second * 15
-		}
-		if utils.Config.Frontend.HttpReadTimeout == 0 {
-			utils.Config.Frontend.HttpIdleTimeout = time.Second * 15
-		}
-		if utils.Config.Frontend.HttpIdleTimeout == 0 {
-			utils.Config.Frontend.HttpIdleTimeout = time.Second * 60
-		}
 		srv := &http.Server{
-			Addr:         cfg.Frontend.Server.Host + ":" + cfg.Frontend.Server.Port,
-			WriteTimeout: utils.Config.Frontend.HttpWriteTimeout,
-			ReadTimeout:  utils.Config.Frontend.HttpReadTimeout,
-			IdleTimeout:  utils.Config.Frontend.HttpIdleTimeout,
-			Handler:      router,
+			Addr:           cfg.Frontend.Server.Host + ":" + cfg.Frontend.Server.Port,
+			Handler:        router,
+			ReadTimeout:    15 * time.Second,
+			WriteTimeout:   15 * time.Second,
+			MaxHeaderBytes: 1 << 20,
+			IdleTimeout:    60 * time.Second,
 		}
 
 		logrus.Printf("http server listening on %v", srv.Addr)
