@@ -9,6 +9,7 @@ import (
 	"github.com/Prajjawalk/zond-indexer/db"
 	"github.com/Prajjawalk/zond-indexer/handlers"
 	"github.com/Prajjawalk/zond-indexer/metrics"
+	"github.com/Prajjawalk/zond-indexer/static"
 	"github.com/Prajjawalk/zond-indexer/version"
 	"github.com/gin-gonic/gin"
 	ginSwagger "github.com/swaggo/gin-swagger"
@@ -312,8 +313,6 @@ func main() {
 		// 	apiV1Router.HandleFunc("/stats/{apiKey}", handlers.ClientStatsPostOld).Methods("POST", "OPTIONS")
 		// 	apiV1Router.HandleFunc("/client/metrics", handlers.ClientStatsPostNew).Methods("POST", "OPTIONS")
 		apiV1Router.POST("/app/dashboard", handlers.ApiDashboard)
-		apiV1Router.GET("/rocketpool/stats", handlers.ApiRocketpoolStats)
-		apiV1Router.GET("/rocketpool/validator/:indexOrPubkey", handlers.ApiRocketpoolValidators)
 		apiV1Router.GET("/ethstore/:day", handlers.ApiEthStoreDay)
 
 		// 	apiV1Router.HandleFunc("/execution/gasnow", handlers.ApiEth1GasNowData).Methods("GET", "OPTIONS")
@@ -394,7 +393,7 @@ func main() {
 		// 			csrf.Path("/"),
 		// 		)
 
-		// 		router.HandleFunc("/", handlers.Index).Methods("GET")
+		router.GET("/", handlers.Index)
 		// 		router.HandleFunc("/latestState", handlers.LatestState).Methods("GET")
 		// 		router.HandleFunc("/launchMetrics", handlers.SlotVizMetrics).Methods("GET")
 		// 		router.HandleFunc("/index/data", handlers.IndexPageData).Methods("GET")
@@ -629,8 +628,9 @@ func main() {
 		// 		//router.PathPrefix("/legal").Handler(http.StripPrefix("/legal/", http.FileServer(legalFs)))
 		// 		router.PathPrefix("/legal").Handler(http.StripPrefix("/legal/", handlers.CustomFileServer(http.FileServer(legalFs), legalFs, handlers.NotFound)))
 		// 		//router.PathPrefix("/").Handler(http.FileServer(http.FS(static.Files)))
-		// 		fileSys := http.FS(static.Files)
-		// 		router.PathPrefix("/").Handler(handlers.CustomFileServer(http.FileServer(fileSys), fileSys, handlers.NotFound))
+		fileSys := http.FS(static.Files)
+		// staticFiles := router.Group("/")
+		router.Use(gin.WrapH(handlers.CustomFileServer(http.FileServer(fileSys), fileSys, handlers.NotFound)))
 
 		// 	}
 

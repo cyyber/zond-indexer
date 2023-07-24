@@ -253,6 +253,10 @@ func (mongodb *Mongo) GetMostRecentBlockFromDataTable() (*types.Eth1BlockIndexed
 		logger.Errorf("error while parsing block data: %v", err)
 	}
 
+	if len(results) == 0 {
+		return &types.Eth1BlockIndexed{}, nil
+	}
+
 	return &types.Eth1BlockIndexed{
 		Hash:                     results[0].Hash,
 		ParentHash:               results[0].ParentHash,

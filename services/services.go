@@ -511,6 +511,59 @@ func indexPageDataUpdater(wg *sync.WaitGroup) {
 	}
 }
 
+func LatestGasNowData() *types.GasNowPageData {
+	wanted := &types.GasNowPageData{}
+	cacheKey := fmt.Sprintf("%d:frontend:gasNow", utils.Config.Chain.Config.DepositChainID)
+
+	if wanted, err := cache.TieredCache.GetWithLocalTimeout(cacheKey, time.Second*5, wanted); err == nil {
+		return wanted.(*types.GasNowPageData)
+	} else {
+		logger.Errorf("error retrieving gasNow from cache: %v", err)
+	}
+
+	return nil
+}
+
+func LatestRelaysPageData() *types.RelaysResp {
+	wanted := &types.RelaysResp{}
+	cacheKey := fmt.Sprintf("%d:frontend:relaysData", utils.Config.Chain.Config.DepositChainID)
+
+	if wanted, err := cache.TieredCache.GetWithLocalTimeout(cacheKey, time.Second*5, wanted); err == nil {
+		return wanted.(*types.RelaysResp)
+	} else {
+		logger.Errorf("error retrieving relaysData from cache: %v", err)
+	}
+
+	return nil
+}
+
+var globalNotificationMessage = template.HTML("")
+var globalNotificationMessageTs time.Time
+var globalNotificationMux = &sync.Mutex{}
+
+func GlobalNotificationMessage() template.HTML {
+	globalNotificationMux.Lock()
+	defer globalNotificationMux.Unlock()
+
+	if time.Since(globalNotificationMessageTs) > time.Minute*10 {
+		globalNotificationMessageTs = time.Now()
+
+		err := db.WriterDb.Get(&globalNotificationMessage, "SELECT content FROM global_notifications WHERE target = $1 AND enabled", utils.Config.Chain.Name)
+
+		if err != nil && err != sql.ErrNoRows {
+			logger.Errorf("error updating global notification message: %v", err)
+			globalNotificationMessage = ""
+			return globalNotificationMessage
+		}
+	}
+	return globalNotificationMessage
+}
+
+// IsSyncing returns true if the chain is still syncing
+func IsSyncing() bool {
+	return time.Now().Add(time.Minute * -10).After(utils.EpochToTime(LatestEpoch()))
+}
+
 func ethStoreStatisticsDataUpdater(wg *sync.WaitGroup) {
 	firstRun := true
 	for {
@@ -1391,4 +1444,62 @@ func getGasNowData() (*types.GasNowPageData, error) {
 	// gpoData.StandardUSD = gpoData.Standard * 21000 * params.GWei / params.Ether * usd
 	// gpoData.SlowUSD = gpoData.Slow * 21000 * params.GWei / params.Ether * usd
 	return gpoData, nil
+}
+
+// LatestIndexPageData returns the latest index page data
+func LatestIndexPageData() *types.IndexPageData {
+	wanted := &types.IndexPageData{}
+	cacheKey := fmt.Sprintf("%d:frontend:indexPageData", utils.Config.Chain.Config.DepositChainID)
+
+	if wanted, err := cache.TieredCache.GetWithLocalTimeout(cacheKey, time.Second*5, wanted); err == nil {
+		return wanted.(*types.IndexPageData)
+	} else {
+		logger.Errorf("error retrieving indexPageData from cache: %v", err)
+	}
+	return &types.IndexPageData{
+		NetworkName:               "",
+		DepositContract:           "",
+		ShowSyncingMessage:        false,
+		CurrentEpoch:              0,
+		CurrentFinalizedEpoch:     0,
+		CurrentSlot:               0,
+		ScheduledCount:            0,
+		FinalityDelay:             0,
+		ActiveValidators:          0,
+		EnteringValidators:        0,
+		ExitingValidators:         0,
+		StakedEther:               "",
+		AverageBalance:            "",
+		DepositedTotal:            0,
+		DepositThreshold:          0,
+		ValidatorsRemaining:       0,
+		NetworkStartTs:            0,
+		MinGenesisTime:            0,
+		Blocks:                    []*types.IndexPageDataBlocks{},
+		Epochs:                    []*types.IndexPageDataEpochs{},
+		StakedEtherChartData:      [][]float64{},
+		ActiveValidatorsChartData: [][]float64{},
+		Subtitle:                  "",
+		Genesis:                   false,
+		GenesisPeriod:             false,
+		Mainnet:                   false,
+		DepositChart:              &types.ChartsPageDataChart{},
+		DepositDistribution:       &types.ChartsPageDataChart{},
+		Countdown:                 nil,
+		SlotVizData:               nil,
+	}
+}
+
+func LatestSlotVizMetrics() []*types.SlotVizEpochs {
+	wanted := &[]*types.SlotVizEpochs{}
+	cacheKey := fmt.Sprintf("%d:frontend:slotVizMetrics", utils.Config.Chain.Config.DepositChainID)
+
+	if wanted, err := cache.TieredCache.GetWithLocalTimeout(cacheKey, time.Second*5, wanted); err == nil {
+		w := wanted.(*[]*types.SlotVizEpochs)
+		return *w
+	} else {
+		logger.Errorf("error retrieving slotVizMetrics from cache: %v", err)
+	}
+
+	return []*types.SlotVizEpochs{}
 }

@@ -11,6 +11,114 @@ import (
 	"github.com/ethereum/go-ethereum/accounts/abi"
 )
 
+// PageData is a struct to hold web page data
+type PageData struct {
+	Active                string
+	AdConfigurations      []*AdConfig
+	Meta                  *Meta
+	ShowSyncingMessage    bool
+	User                  *User
+	Data                  interface{}
+	Version               string
+	Year                  int
+	ChainSlotsPerEpoch    uint64
+	ChainSecondsPerSlot   uint64
+	ChainGenesisTimestamp uint64
+	CurrentEpoch          uint64
+	LatestFinalizedEpoch  uint64
+	CurrentSlot           uint64
+	FinalizationDelay     uint64
+	Mainnet               bool
+	DepositContract       string
+	Rates                 PageRates
+	InfoBanner            *template.HTML
+	ClientsUpdated        bool
+	// IsUserClientUpdated   func(uint64) bool
+	ChainConfig         ChainConfig
+	Lang                string
+	NoAds               bool
+	Debug               bool
+	DebugTemplates      []string
+	DebugSession        map[string]interface{}
+	GasNow              *GasNowPageData
+	GlobalNotification  template.HTML
+	AvailableCurrencies []string
+	MainMenuItems       []MainMenuItem
+}
+
+type PageRates struct {
+	EthPrice               float64
+	EthRoundPrice          uint64
+	EthTruncPrice          template.HTML
+	UsdRoundPrice          uint64
+	UsdTruncPrice          template.HTML
+	EurRoundPrice          uint64
+	EurTruncPrice          template.HTML
+	GbpRoundPrice          uint64
+	GbpTruncPrice          template.HTML
+	CnyRoundPrice          uint64
+	CnyTruncPrice          template.HTML
+	RubRoundPrice          uint64
+	RubTruncPrice          template.HTML
+	CadRoundPrice          uint64
+	CadTruncPrice          template.HTML
+	AudRoundPrice          uint64
+	AudTruncPrice          template.HTML
+	JpyRoundPrice          uint64
+	JpyTruncPrice          template.HTML
+	Currency               string
+	CurrentPriceFormatted  template.HTML
+	CurrentPriceKFormatted template.HTML
+	CurrentSymbol          string
+	ExchangeRate           float64
+}
+
+// Meta is a struct to hold metadata about the page
+type Meta struct {
+	Title       string
+	Description string
+	Path        string
+	Tlabel1     string
+	Tdata1      string
+	Tlabel2     string
+	Tdata2      string
+	GATag       string
+	NoTrack     bool
+	Templates   string
+}
+
+type User struct {
+	UserID        uint64 `json:"user_id"`
+	Authenticated bool   `json:"authenticated"`
+	Subscription  string `json:"subscription"`
+	UserGroup     string `json:"user_group"`
+}
+
+type MainMenuItem struct {
+	Label        string
+	Path         string
+	IsActive     bool
+	HasBigGroups bool // if HasBigGroups is set to true then the NavigationGroups will be ordered horizontally and their Label will be shown
+	Groups       []NavigationGroup
+}
+
+type NavigationGroup struct {
+	Label string // only used for "BigGroups"
+	Links []NavigationLink
+}
+
+type NavigationLink struct {
+	Label         string
+	Path          string
+	CustomIcon    string
+	Icon          string
+	IsHidden      bool
+	IsHighlighted bool
+}
+
+type Empty struct {
+}
+
 // DataTableResponse is a struct to hold data for data table responses
 type DataTableResponse struct {
 	Draw            uint64          `json:"draw"`

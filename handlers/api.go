@@ -13,7 +13,6 @@ import (
 	"sort"
 	"strconv"
 	"strings"
-	"sync/atomic"
 	"time"
 
 	"github.com/Prajjawalk/zond-indexer/db"
@@ -1854,62 +1853,6 @@ func ApiValidatorQueue(c *gin.Context) {
 	returnQueryResults(rows, w, r)
 }
 
-// ApiRocketpoolStats godoc
-// @Summary Get global rocketpool network statistics
-// @Tags Rocketpool
-// @Produce  json
-// @Success 200 {object} types.ApiResponse{data=types.APIRocketpoolStatsResponse}
-// @Failure 400 {object} types.ApiResponse
-// @Router /api/v1/rocketpool/stats [get]
-func ApiRocketpoolStats(c *gin.Context) {
-	w := c.Writer
-	r := c.Request
-	w.Header().Set("Content-Type", "application/json")
-
-	j := json.NewEncoder(w)
-
-	stats, err := getRocketpoolStats()
-
-	if err != nil {
-		sendErrorResponse(w, r.URL.String(), "could not parse db results")
-		return
-	}
-
-	sendOKResponse(j, r.URL.String(), stats)
-}
-
-// ApiRocketpoolValidators godoc
-// @Summary Get rocketpool specific data for given validators
-// @Tags Rocketpool
-// @Param  indexOrPubkey path string true "Up to 100 validator indicesOrPubkeys, comma separated"
-// @Produce  json
-// @Success 200 {object} types.ApiResponse{data=types.ApiRocketpoolValidatorResponse}
-// @Failure 400 {object} types.ApiResponse
-// @Router /api/v1/rocketpool/validator/{indexOrPubkey} [get]
-func ApiRocketpoolValidators(c *gin.Context) {
-	w := c.Writer
-	r := c.Request
-	w.Header().Set("Content-Type", "application/json")
-
-	j := json.NewEncoder(w)
-	maxValidators := getUserPremium(r).MaxValidators
-
-	queryIndices, err := parseApiValidatorParamToIndices(c.Param("indexOrPubkey"), maxValidators)
-	if err != nil {
-		sendErrorResponse(w, r.URL.String(), err.Error())
-		return
-	}
-
-	stats, err := getRocketpoolValidators(queryIndices)
-
-	if err != nil {
-		sendErrorResponse(w, r.URL.String(), "could not parse db results")
-		return
-	}
-
-	sendOKResponse(j, r.URL.String(), stats)
-}
-
 // ApiEthStoreDay godoc
 // @Summary Get ETH.STORE reference rate for a specified beaconchain-day or the latest day
 // @Tags ETH.STORE
@@ -2041,11 +1984,6 @@ func ApiDashboard(c *gin.Context) {
 			})
 
 			g.Go(func() error {
-				rocketpoolData, err = getRocketpoolValidators(queryIndices)
-				return err
-			})
-
-			g.Go(func() error {
 				executionPerformance, err = getValidatorExecutionPerformance(queryIndices)
 				return err
 			})
@@ -2076,11 +2014,6 @@ func ApiDashboard(c *gin.Context) {
 
 	g.Go(func() error {
 		olderEpochData, err = getEpoch(int64(epoch) - 10)
-		return err
-	})
-
-	g.Go(func() error {
-		rocketpoolStats, err = getRocketpoolStats()
 		return err
 	})
 
@@ -2195,82 +2128,6 @@ func APIDashboardDataBalance(c *gin.Context) {
 type Cached struct {
 	Data interface{}
 	Ts   int64
-}
-
-var rocketpoolStats atomic.Value
-
-func getRocketpoolStats() ([]interface{}, error) {
-	cached := rocketpoolStats.Load()
-	if cached != nil {
-		cachedObj := cached.(*Cached)
-		if cachedObj.Ts+10*60 > time.Now().Unix() { // cache for 30min
-			return cachedObj.Data.([]interface{}), nil
-		}
-	}
-	rows, err := db.ReaderDb.Query(`
-		SELECT claim_interval_time, claim_interval_time_start, 
-		current_node_demand, TRUNC(current_node_fee::decimal, 10)::float as current_node_fee, effective_rpl_staked,
-		node_operator_rewards, TRUNC(reth_exchange_rate::decimal, 10)::float as reth_exchange_rate, reth_supply, rpl_price, total_eth_balance, total_eth_staking, 
-		minipool_count, node_count, odao_member_count, 
-		(SELECT TRUNC(((1 - (min(history.reth_exchange_rate) / max(history.reth_exchange_rate))) * 52.14)::decimal , 10) FROM (SELECT ts, reth_exchange_rate FROM rocketpool_network_stats LIMIT 168) history)::float as reth_apr  
-		from rocketpool_network_stats ORDER BY ts desc LIMIT 1;
-			`)
-
-	if err != nil {
-		return nil, err
-	}
-	defer rows.Close()
-	data, err := utils.SqlRowsToJSON(rows)
-	if err != nil {
-		return nil, err
-	}
-
-	rocketpoolStats.Store(&Cached{
-		Data: data,
-		Ts:   time.Now().Unix(),
-	})
-
-	return data, nil
-}
-
-func getRocketpoolValidators(queryIndices []uint64) ([]interface{}, error) {
-	rows, err := db.ReaderDb.Query(`
-		SELECT
-			rplm.node_address      AS node_address,
-			rplm.address           AS minipool_address,
-			TRUNC(rplm.node_fee::decimal, 10)::float          AS minipool_node_fee,
-			rplm.deposit_type      AS minipool_deposit_type,
-			rplm.status            AS minipool_status,
-			rplm.penalty_count     AS penalty_count,
-			rplm.status_time       AS minipool_status_time,
-			rpln.timezone_location AS node_timezone_location,
-			rpln.rpl_stake         AS node_rpl_stake,
-			rpln.max_rpl_stake     AS node_max_rpl_stake,
-			rpln.min_rpl_stake     AS node_min_rpl_stake,
-			rpln.rpl_cumulative_rewards     AS rpl_cumulative_rewards,
-			validators.validatorindex AS index,
-			rpln.claimed_smoothing_pool     AS claimed_smoothing_pool,
-			rpln.unclaimed_smoothing_pool   AS unclaimed_smoothing_pool,
-			rpln.unclaimed_rpl_rewards      AS unclaimed_rpl_rewards,
-			COALESCE(rpln.smoothing_pool_opted_in, false)    AS smoothing_pool_opted_in,
-			COALESCE(rpln.deposit_credit, 0) as node_deposit_credit,
-			COALESCE(rplm.node_deposit_balance, 0) AS node_deposit_balance,
-			COALESCE(rplm.node_refund_balance, 0) AS node_refund_balance,
-			COALESCE(rplm.user_deposit_balance, 0) AS user_deposit_balance,
-			COALESCE(rplm.is_vacant, false) AS is_vacant,
-			COALESCE(rpln.effective_rpl_stake, 0) as effective_rpl_stake,
-			COALESCE(rplm.version, 0) AS version
-		FROM rocketpool_minipools rplm 
-		LEFT JOIN validators validators ON rplm.pubkey = validators.pubkey 
-		LEFT JOIN rocketpool_nodes rpln ON rplm.node_address = rpln.address
-		WHERE validatorindex = ANY($1)`, pq.Array(queryIndices))
-
-	if err != nil {
-		return nil, fmt.Errorf("error querying rocketpool minipools: %w", err)
-	}
-	defer rows.Close()
-
-	return utils.SqlRowsToJSON(rows)
 }
 
 func validators(queryIndices []uint64) ([]interface{}, error) {
