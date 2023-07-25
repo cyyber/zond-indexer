@@ -5,8 +5,8 @@ Highcharts.setOptions({
   },
   credits: {
     enabled: true,
-    href: "https://beaconcha.in",
-    text: "beaconcha.in",
+    href: "https://zondscan.in",
+    text: "zondscan.in",
     style: {
       color: "var(--body-color)",
     },

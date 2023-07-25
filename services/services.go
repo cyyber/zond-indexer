@@ -63,17 +63,17 @@ func Init() {
 	ready.Add(1)
 	go statsUpdater(ready)
 
-	ready.Add(1)
-	go mempoolUpdater(ready)
+	// ready.Add(1)
+	// go mempoolUpdater(ready)
 
-	ready.Add(1)
-	go burnUpdater(ready)
+	// ready.Add(1)
+	// go burnUpdater(ready)
 
 	ready.Add(1)
 	go gasNowUpdater(ready)
 
-	ready.Add(1)
-	go ethStoreStatisticsDataUpdater(ready)
+	// ready.Add(1)
+	// go ethStoreStatisticsDataUpdater(ready)
 
 	// ready.Add(1)
 	// go startMonitoringService(ready)
@@ -1373,7 +1373,13 @@ func getGasNowData() (*types.GasNowPageData, error) {
 	if err != nil {
 		return nil, err
 	}
-	txs := body.Transactions
+	blk_txs := body.Transactions
+	txs := []rpcTransaction{}
+	for i := range blk_txs {
+		if blk_txs[i].tx != nil {
+			txs = append(txs, blk_txs[i])
+		}
+	}
 
 	sort.Slice(txs, func(i, j int) bool {
 		return txs[i].tx.GasPrice().Cmp(txs[j].tx.GasPrice()) > 0
@@ -1502,4 +1508,45 @@ func LatestSlotVizMetrics() []*types.SlotVizEpochs {
 	}
 
 	return []*types.SlotVizEpochs{}
+}
+
+// LatestProposedSlot will return the latest proposed slot
+func LatestProposedSlot() uint64 {
+	cacheKey := fmt.Sprintf("%d:frontend:latestProposedSlot", utils.Config.Chain.Config.DepositChainID)
+
+	if wanted, err := cache.TieredCache.GetUint64WithLocalTimeout(cacheKey, time.Second*5); err == nil {
+		return wanted
+	} else {
+		logger.Errorf("error retrieving latestProposedSlot from cache: %v", err)
+	}
+	return 0
+}
+
+// LatestState returns statistics about the current eth2 state
+func LatestState() *types.LatestState {
+	data := &types.LatestState{}
+	data.CurrentEpoch = LatestEpoch()
+	data.CurrentSlot = LatestSlot()
+	data.CurrentFinalizedEpoch = LatestFinalizedEpoch()
+	data.LastProposedSlot = LatestProposedSlot()
+	data.FinalityDelay = FinalizationDelay()
+	data.IsSyncing = IsSyncing()
+	data.UsdRoundPrice = price.GetEthRoundPrice(price.GetEthPrice("USD"))
+	data.UsdTruncPrice = utils.KFormatterEthPrice(data.UsdRoundPrice)
+	data.EurRoundPrice = price.GetEthRoundPrice(price.GetEthPrice("EUR"))
+	data.EurTruncPrice = utils.KFormatterEthPrice(data.EurRoundPrice)
+	data.GbpRoundPrice = price.GetEthRoundPrice(price.GetEthPrice("GBP"))
+	data.GbpTruncPrice = utils.KFormatterEthPrice(data.GbpRoundPrice)
+	data.CnyRoundPrice = price.GetEthRoundPrice(price.GetEthPrice("CNY"))
+	data.CnyTruncPrice = utils.KFormatterEthPrice(data.CnyRoundPrice)
+	data.RubRoundPrice = price.GetEthRoundPrice(price.GetEthPrice("RUB"))
+	data.RubTruncPrice = utils.KFormatterEthPrice(data.RubRoundPrice)
+	data.CadRoundPrice = price.GetEthRoundPrice(price.GetEthPrice("CAD"))
+	data.CadTruncPrice = utils.KFormatterEthPrice(data.CadRoundPrice)
+	data.AudRoundPrice = price.GetEthRoundPrice(price.GetEthPrice("AUD"))
+	data.AudTruncPrice = utils.KFormatterEthPrice(data.AudRoundPrice)
+	data.JpyRoundPrice = price.GetEthRoundPrice(price.GetEthPrice("JPY"))
+	data.JpyTruncPrice = utils.KFormatterEthPrice(data.JpyRoundPrice)
+
+	return data
 }

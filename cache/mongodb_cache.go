@@ -54,7 +54,7 @@ func (cache *MongodbCache) Set(ctx context.Context, key string, value any, expir
 
 	inputCache := &entity.Cache{}
 	inputCache.Expiration = primitive.DateTime(expiration)
-	inputCache.Key = []byte(fmt.Sprintf("C:%s", key))
+	inputCache.Key = []byte(fmt.Sprintf("%s", key))
 	inputCache.Type = family
 	valueMarshal, err := json.Marshal(value)
 	if err != nil {
@@ -67,7 +67,7 @@ func (cache *MongodbCache) Set(ctx context.Context, key string, value any, expir
 		return err
 	}
 
-	_, err = cache.tableCache.InsertOne(ctx, doc)
+	_, err = cache.tableCache.UpdateOne(ctx, bson.D{{Key: "key", Value: inputCache.Key}}, bson.D{{Key: "$set", Value: doc}}, options.Update().SetUpsert(true))
 	if err != nil {
 		return err
 	}
@@ -87,7 +87,7 @@ func (cache *MongodbCache) setByte(ctx context.Context, key string, value []byte
 
 	inputCache := &entity.Cache{}
 	inputCache.Expiration = primitive.DateTime(expiration)
-	inputCache.Key = []byte(fmt.Sprintf("C:%s", key))
+	inputCache.Key = []byte(fmt.Sprintf("%s", key))
 	inputCache.Type = family
 	inputCache.Value = value
 
@@ -96,7 +96,7 @@ func (cache *MongodbCache) setByte(ctx context.Context, key string, value []byte
 		return err
 	}
 
-	_, err = cache.tableCache.InsertOne(ctx, doc)
+	_, err = cache.tableCache.UpdateOne(ctx, bson.D{{Key: "key", Value: inputCache.Key}}, bson.D{{Key: "$set", Value: doc}}, options.Update().SetUpsert(true))
 	if err != nil {
 		return err
 	}
@@ -124,7 +124,7 @@ func (cache *MongodbCache) Get(ctx context.Context, key string, returnValue any)
 	err = json.Unmarshal([]byte(res), returnValue)
 	if err != nil {
 		// cache.remoteRedisCache.Del(ctx, key).Err()
-		logrus.Errorf("error (bigtable_cache.go / Get) unmarshalling data for key %v: %v", key, err)
+		logrus.Errorf("error (mongodb_cache.go / Get) unmarshalling data for key %v: %v", key, err)
 		return nil, err
 	}
 
@@ -132,7 +132,7 @@ func (cache *MongodbCache) Get(ctx context.Context, key string, returnValue any)
 }
 
 func (cache *MongodbCache) getByte(ctx context.Context, key string) ([]byte, error) {
-	filter := bson.D{{Key: "key", Value: fmt.Sprintf("C:%s", key)}}
+	filter := bson.D{{Key: "key", Value: []byte(key)}}
 	var result *entity.Cache
 	err := cache.tableCache.FindOne(ctx, filter, options.FindOne().SetSort(bson.D{{Key: "createdAt", Value: -1}})).Decode(&result)
 	if err != nil {

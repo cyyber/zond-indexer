@@ -772,3 +772,33 @@ type RelayInfo struct {
 	MaxValue       WeiString      `db:"max_value"`
 	MaxValueSlot   uint64         `db:"max_value_slot"`
 }
+
+// LatestState is a struct to hold data for the banner
+type LatestState struct {
+	LastProposedSlot      uint64        `json:"lastProposedSlot"`
+	CurrentSlot           uint64        `json:"currentSlot"`
+	CurrentEpoch          uint64        `json:"currentEpoch"`
+	CurrentFinalizedEpoch uint64        `json:"currentFinalizedEpoch"`
+	FinalityDelay         uint64        `json:"finalityDelay"`
+	IsSyncing             bool          `json:"syncing"`
+	EthPrice              float64       `json:"ethPrice"`
+	EthRoundPrice         uint64        `json:"ethRoundPrice"`
+	EthTruncPrice         template.HTML `json:"ethTruncPrice"`
+	UsdRoundPrice         uint64        `json:"usdRoundPrice"`
+	UsdTruncPrice         template.HTML `json:"usdTruncPrice"`
+	EurRoundPrice         uint64        `json:"eurRoundPrice"`
+	EurTruncPrice         template.HTML `json:"eurTruncPrice"`
+	GbpRoundPrice         uint64        `json:"gbpRoundPrice"`
+	GbpTruncPrice         template.HTML `json:"gbpTruncPrice"`
+	CnyRoundPrice         uint64        `json:"cnyRoundPrice"`
+	CnyTruncPrice         template.HTML `json:"cnyTruncPrice"`
+	RubRoundPrice         uint64        `json:"rubRoundPrice"`
+	RubTruncPrice         template.HTML `json:"rubTruncPrice"`
+	CadRoundPrice         uint64        `json:"cadRoundPrice"`
+	CadTruncPrice         template.HTML `json:"cadTruncPrice"`
+	AudRoundPrice         uint64        `json:"audRoundPrice"`
+	AudTruncPrice         template.HTML `json:"audTruncPrice"`
+	JpyRoundPrice         uint64        `json:"jpyRoundPrice"`
+	JpyTruncPrice         template.HTML `json:"jpyTruncPrice"`
+	Currency              string        `json:"currency"`
+}

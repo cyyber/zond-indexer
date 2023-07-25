@@ -394,9 +394,9 @@ func main() {
 		// 		)
 
 		router.GET("/", handlers.Index)
-		// 		router.HandleFunc("/latestState", handlers.LatestState).Methods("GET")
+		router.GET("/latestState", handlers.LatestState)
 		// 		router.HandleFunc("/launchMetrics", handlers.SlotVizMetrics).Methods("GET")
-		// 		router.HandleFunc("/index/data", handlers.IndexPageData).Methods("GET")
+		router.GET("/index/data", handlers.IndexPageData)
 		// 		router.HandleFunc("/slot/{slotOrHash}", handlers.Slot).Methods("GET")
 		// 		router.HandleFunc("/slot/{slotOrHash}/deposits", handlers.SlotDepositData).Methods("GET")
 		// 		router.HandleFunc("/slot/{slotOrHash}/votes", handlers.SlotVoteData).Methods("GET")
