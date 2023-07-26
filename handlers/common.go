@@ -11,6 +11,7 @@ import (
 
 	"github.com/Prajjawalk/zond-indexer/price"
 	"github.com/Prajjawalk/zond-indexer/services"
+	"github.com/Prajjawalk/zond-indexer/types"
 	"github.com/Prajjawalk/zond-indexer/utils"
 	"github.com/gin-gonic/gin"
 	"github.com/sirupsen/logrus"
@@ -113,4 +114,28 @@ func LatestState(c *gin.Context) {
 		http.Error(w, "Internal server error", http.StatusServiceUnavailable)
 		return
 	}
+}
+
+func GetDataTableState(user *types.User, session *utils.CustomSession, tableKey string) *types.DataTableSaveState {
+	state := types.DataTableSaveState{
+		Start: 0,
+	}
+	// if user.Authenticated {
+	// 	state, err := db.GetDataTablesState(user.UserID, tableKey)
+	// 	if err != nil && err != sql.ErrNoRows {
+	// 		logger.Errorf("error getting data table state from db: %v", err)
+	// 		return state
+	// 	}
+	// 	return state
+	// }
+	// stateRaw, exists := session.Values()["table:state:"+utils.GetNetwork()+":"+tableKey]
+	// if !exists {
+	// 	return &state
+	// }
+	// state, ok := stateRaw.(types.DataTableSaveState)
+	// if !ok {
+	// 	logger.Errorf("error getting state from session: %+v", stateRaw)
+	// 	return &state
+	// }
+	return &state
 }

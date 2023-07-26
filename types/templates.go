@@ -2,6 +2,7 @@ package types
 
 import (
 	"database/sql"
+	"encoding/json"
 	"fmt"
 	"html/template"
 	"math/big"
@@ -9,6 +10,7 @@ import (
 	"time"
 
 	"github.com/ethereum/go-ethereum/accounts/abi"
+	"github.com/lib/pq"
 )
 
 // PageData is a struct to hold web page data
@@ -801,4 +803,306 @@ type LatestState struct {
 	JpyRoundPrice         uint64        `json:"jpyRoundPrice"`
 	JpyTruncPrice         template.HTML `json:"jpyTruncPrice"`
 	Currency              string        `json:"currency"`
+}
+
+// EpochPageData is a struct to hold detailed epoch data for the epoch page
+type EpochPageData struct {
+	Epoch                   uint64        `db:"epoch"`
+	BlocksCount             uint64        `db:"blockscount"`
+	ProposerSlashingsCount  uint64        `db:"proposerslashingscount"`
+	AttesterSlashingsCount  uint64        `db:"attesterslashingscount"`
+	AttestationsCount       uint64        `db:"attestationscount"`
+	DepositsCount           uint64        `db:"depositscount"`
+	WithdrawalCount         uint64        `db:"withdrawalcount"`
+	DepositTotal            uint64        `db:"deposittotal"`
+	WithdrawalTotal         template.HTML `db:"withdrawaltotal"`
+	VoluntaryExitsCount     uint64        `db:"voluntaryexitscount"`
+	ValidatorsCount         uint64        `db:"validatorscount"`
+	AverageValidatorBalance uint64        `db:"averagevalidatorbalance"`
+	Finalized               bool          `db:"finalized"`
+	EligibleEther           uint64        `db:"eligibleether"`
+	GlobalParticipationRate float64       `db:"globalparticipationrate"`
+	VotedEther              uint64        `db:"votedether"`
+
+	Blocks []*IndexPageDataBlocks
+
+	SyncParticipationRate float64
+	Ts                    time.Time
+	NextEpoch             uint64
+	PreviousEpoch         uint64
+	ProposedCount         uint64
+	MissedCount           uint64
+	ScheduledCount        uint64
+	OrphanedCount         uint64
+}
+
+// EpochsPageData is a struct to hold epoch data for the epochs page
+type EpochsPageData struct {
+	Epoch                   uint64  `db:"epoch"`
+	BlocksCount             uint64  `db:"blockscount"`
+	ProposerSlashingsCount  uint64  `db:"proposerslashingscount"`
+	AttesterSlashingsCount  uint64  `db:"attesterslashingscount"`
+	AttestationsCount       uint64  `db:"attestationscount"`
+	DepositsCount           uint64  `db:"depositscount"`
+	WithdrawalCount         uint64  `db:"withdrawalcount"`
+	VoluntaryExitsCount     uint64  `db:"voluntaryexitscount"`
+	ValidatorsCount         uint64  `db:"validatorscount"`
+	AverageValidatorBalance uint64  `db:"averagevalidatorbalance"`
+	Finalized               bool    `db:"finalized"`
+	EligibleEther           uint64  `db:"eligibleether"`
+	GlobalParticipationRate float64 `db:"globalparticipationrate"`
+	VotedEther              uint64  `db:"votedether"`
+}
+
+// BlockVote stores a vote for a given block
+type BlockVote struct {
+	Validator      uint64 `db:"validator"`
+	IncludedIn     uint64 `db:"included_in"`
+	CommitteeIndex uint64 `db:"committee_index"`
+}
+
+// BlockPageTransaction is a struct to hold execution transactions on the block page
+type BlockPageTransaction struct {
+	BlockSlot    uint64 `db:"block_slot"`
+	BlockIndex   uint64 `db:"block_index"`
+	TxHash       []byte `db:"txhash"`
+	AccountNonce uint64 `db:"nonce"`
+	// big endian
+	Price       []byte `db:"gas_price"`
+	PricePretty string
+	GasLimit    uint64 `db:"gas_limit"`
+	Sender      []byte `db:"sender"`
+	Recipient   []byte `db:"recipient"`
+	// big endian
+	Amount       []byte `db:"amount"`
+	AmountPretty string
+	Payload      []byte `db:"payload"`
+
+	// TODO: transaction type
+
+	MaxPriorityFeePerGas uint64 `db:"max_priority_fee_per_gas"`
+	MaxFeePerGas         uint64 `db:"max_fee_per_gas"`
+}
+
+// BlockPageAttestation is a struct to hold attestations on the block page
+type BlockPageAttestation struct {
+	BlockSlot       uint64        `db:"block_slot"`
+	BlockIndex      uint64        `db:"block_index"`
+	AggregationBits []byte        `db:"aggregationbits"`
+	Validators      pq.Int64Array `db:"validators"`
+	Signature       []byte        `db:"signature"`
+	Slot            uint64        `db:"slot"`
+	CommitteeIndex  uint64        `db:"committeeindex"`
+	BeaconBlockRoot []byte        `db:"beaconblockroot"`
+	SourceEpoch     uint64        `db:"source_epoch"`
+	SourceRoot      []byte        `db:"source_root"`
+	TargetEpoch     uint64        `db:"target_epoch"`
+	TargetRoot      []byte        `db:"target_root"`
+}
+
+// BlockPageDeposit is a struct to hold data for deposits on the block page
+type BlockPageDeposit struct {
+	PublicKey             []byte `db:"publickey"`
+	WithdrawalCredentials []byte `db:"withdrawalcredentials"`
+	Amount                uint64 `db:"amount"`
+	Signature             []byte `db:"signature"`
+}
+
+// BlockPageVoluntaryExits is a struct to hold data for voluntary exits on the block page
+type BlockPageVoluntaryExits struct {
+	ValidatorIndex uint64 `db:"validatorindex"`
+	Signature      []byte `db:"signature"`
+}
+
+// BlockPageAttesterSlashing is a struct to hold data for attester slashings on the block page
+type BlockPageAttesterSlashing struct {
+	BlockSlot                   uint64        `db:"block_slot"`
+	BlockIndex                  uint64        `db:"block_index"`
+	Attestation1Indices         pq.Int64Array `db:"attestation1_indices"`
+	Attestation1Signature       []byte        `db:"attestation1_signature"`
+	Attestation1Slot            uint64        `db:"attestation1_slot"`
+	Attestation1Index           uint64        `db:"attestation1_index"`
+	Attestation1BeaconBlockRoot []byte        `db:"attestation1_beaconblockroot"`
+	Attestation1SourceEpoch     uint64        `db:"attestation1_source_epoch"`
+	Attestation1SourceRoot      []byte        `db:"attestation1_source_root"`
+	Attestation1TargetEpoch     uint64        `db:"attestation1_target_epoch"`
+	Attestation1TargetRoot      []byte        `db:"attestation1_target_root"`
+	Attestation2Indices         pq.Int64Array `db:"attestation2_indices"`
+	Attestation2Signature       []byte        `db:"attestation2_signature"`
+	Attestation2Slot            uint64        `db:"attestation2_slot"`
+	Attestation2Index           uint64        `db:"attestation2_index"`
+	Attestation2BeaconBlockRoot []byte        `db:"attestation2_beaconblockroot"`
+	Attestation2SourceEpoch     uint64        `db:"attestation2_source_epoch"`
+	Attestation2SourceRoot      []byte        `db:"attestation2_source_root"`
+	Attestation2TargetEpoch     uint64        `db:"attestation2_target_epoch"`
+	Attestation2TargetRoot      []byte        `db:"attestation2_target_root"`
+	SlashedValidators           []int64
+}
+
+// BlockPageProposerSlashing is a struct to hold data for proposer slashings on the block page
+type BlockPageProposerSlashing struct {
+	BlockSlot         uint64 `db:"block_slot"`
+	BlockIndex        uint64 `db:"block_index"`
+	BlockRoot         []byte `db:"block_root" json:"block_root"`
+	ProposerIndex     uint64 `db:"proposerindex"`
+	Header1Slot       uint64 `db:"header1_slot"`
+	Header1ParentRoot []byte `db:"header1_parentroot"`
+	Header1StateRoot  []byte `db:"header1_stateroot"`
+	Header1BodyRoot   []byte `db:"header1_bodyroot"`
+	Header1Signature  []byte `db:"header1_signature"`
+	Header2Slot       uint64 `db:"header2_slot"`
+	Header2ParentRoot []byte `db:"header2_parentroot"`
+	Header2StateRoot  []byte `db:"header2_stateroot"`
+	Header2BodyRoot   []byte `db:"header2_bodyroot"`
+	Header2Signature  []byte `db:"header2_signature"`
+}
+
+// BlockPageData is a struct block data used in the block page
+type BlockPageData struct {
+	Epoch                  uint64  `db:"epoch"`
+	EpochFinalized         bool    `db:"epoch_finalized"`
+	EpochParticipationRate float64 `db:"epoch_participation_rate"`
+	Slot                   uint64  `db:"slot"`
+	Ts                     time.Time
+	NextSlot               uint64
+	PreviousSlot           uint64
+	Proposer               uint64  `db:"proposer"`
+	Status                 uint64  `db:"status"`
+	BlockRoot              []byte  `db:"blockroot"`
+	ParentRoot             []byte  `db:"parentroot"`
+	StateRoot              []byte  `db:"stateroot"`
+	Signature              []byte  `db:"signature"`
+	RandaoReveal           []byte  `db:"randaoreveal"`
+	Graffiti               []byte  `db:"graffiti"`
+	ProposerName           string  `db:"name"`
+	Eth1dataDepositroot    []byte  `db:"eth1data_depositroot"`
+	Eth1dataDepositcount   uint64  `db:"eth1data_depositcount"`
+	Eth1dataBlockhash      []byte  `db:"eth1data_blockhash"`
+	SyncAggregateBits      []byte  `db:"syncaggregate_bits"`
+	SyncAggregateSignature []byte  `db:"syncaggregate_signature"`
+	SyncAggParticipation   float64 `db:"syncaggregate_participation"`
+	ProposerSlashingsCount uint64  `db:"proposerslashingscount"`
+	AttesterSlashingsCount uint64  `db:"attesterslashingscount"`
+	AttestationsCount      uint64  `db:"attestationscount"`
+	DepositsCount          uint64  `db:"depositscount"`
+	WithdrawalCount        uint64  `db:"withdrawalcount"`
+	BLSChangeCount         uint64  `db:"bls_change_count"`
+	VoluntaryExitscount    uint64  `db:"voluntaryexitscount"`
+	SlashingsCount         uint64
+	VotesCount             uint64
+	VotingValidatorsCount  uint64
+	Mainnet                bool
+
+	ExecParentHash        []byte        `db:"exec_parent_hash"`
+	ExecFeeRecipient      []byte        `db:"exec_fee_recipient"`
+	ExecStateRoot         []byte        `db:"exec_state_root"`
+	ExecReceiptsRoot      []byte        `db:"exec_receipts_root"`
+	ExecLogsBloom         []byte        `db:"exec_logs_bloom"`
+	ExecRandom            []byte        `db:"exec_random"`
+	ExecBlockNumber       sql.NullInt64 `db:"exec_block_number"`
+	ExecGasLimit          sql.NullInt64 `db:"exec_gas_limit"`
+	ExecGasUsed           sql.NullInt64 `db:"exec_gas_used"`
+	ExecTimestamp         sql.NullInt64 `db:"exec_timestamp"`
+	ExecTime              time.Time
+	ExecExtraData         []byte        `db:"exec_extra_data"`
+	ExecBaseFeePerGas     sql.NullInt64 `db:"exec_base_fee_per_gas"`
+	ExecBlockHash         []byte        `db:"exec_block_hash"`
+	ExecTransactionsCount uint64        `db:"exec_transactions_count"`
+
+	Transactions []*BlockPageTransaction
+
+	Withdrawals []*Withdrawals
+
+	ExecutionData *Eth1BlockPageData
+
+	Attestations      []*BlockPageAttestation // Attestations included in this block
+	VoluntaryExits    []*BlockPageVoluntaryExits
+	Votes             []*BlockVote // Attestations that voted for that block
+	AttesterSlashings []*BlockPageAttesterSlashing
+	ProposerSlashings []*BlockPageProposerSlashing
+	SyncCommittee     []uint64 // TODO: Setting it to contain the validator index
+
+	Tags       TagMetadataSlice `db:"tags"`
+	IsValidMev bool             `db:"is_valid_mev"`
+}
+
+func (u *BlockPageData) MarshalJSON() ([]byte, error) {
+	type Alias BlockPageData
+	return json.Marshal(&struct {
+		BlockRoot string
+		Ts        int64
+		*Alias
+	}{
+		BlockRoot: fmt.Sprintf("%x", u.BlockRoot),
+		Ts:        u.Ts.Unix(),
+		Alias:     (*Alias)(u),
+	})
+}
+
+type Eth1BlockPageData struct {
+	Number                uint64
+	PreviousBlock         uint64
+	NextBlock             uint64
+	TxCount               uint64
+	WithdrawalCount       uint64
+	UncleCount            uint64
+	Hash                  string
+	ParentHash            string
+	MinerAddress          string
+	MinerFormatted        template.HTML
+	Reward                *big.Int
+	MevReward             *big.Int
+	MevBribe              *big.Int
+	IsValidMev            bool
+	MevRecipientFormatted template.HTML
+	TxFees                *big.Int
+	GasUsage              template.HTML
+	GasLimit              uint64
+	LowestGasPrice        *big.Int
+	Ts                    time.Time
+	Difficulty            *big.Int
+	BaseFeePerGas         *big.Int
+	BurnedFees            *big.Int
+	Extra                 string
+	Txs                   []Eth1BlockPageTransaction
+	Uncles                []Eth1BlockPageData
+	State                 string
+}
+
+type Eth1BlockPageTransaction struct {
+	Hash          string
+	HashFormatted template.HTML
+	From          string
+	FromFormatted template.HTML
+	To            string
+	ToFormatted   template.HTML
+	Value         *big.Int
+	Fee           *big.Int
+	GasPrice      *big.Int
+	Method        string
+}
+
+// IndexPageDataBlocks is a struct to hold detail data for the main web page
+type BlocksPageDataBlocks struct {
+	TotalCount           uint64        `db:"total_count"`
+	Epoch                uint64        `json:"epoch"`
+	Slot                 uint64        `json:"slot"`
+	Ts                   time.Time     `json:"ts"`
+	Proposer             uint64        `db:"proposer" json:"proposer"`
+	ProposerFormatted    template.HTML `json:"proposer_formatted"`
+	BlockRoot            []byte        `db:"blockroot" json:"block_root"`
+	BlockRootFormatted   string        `json:"block_root_formatted"`
+	ParentRoot           []byte        `db:"parentroot" json:"parent_root"`
+	Attestations         uint64        `db:"attestationscount" json:"attestations"`
+	Deposits             uint64        `db:"depositscount" json:"deposits"`
+	Withdrawals          uint64        `db:"withdrawalcount" json:"withdrawals"`
+	Exits                uint64        `db:"voluntaryexitscount" json:"exits"`
+	Proposerslashings    uint64        `db:"proposerslashingscount" json:"proposerslashings"`
+	Attesterslashings    uint64        `db:"attesterslashingscount" json:"attesterslashings"`
+	SyncAggParticipation float64       `db:"syncaggregate_participation" json:"sync_aggregate_participation"`
+	Status               uint64        `db:"status" json:"status"`
+	StatusFormatted      template.HTML `json:"status_formatted"`
+	Votes                uint64        `db:"votes" json:"votes"`
+	Graffiti             []byte        `db:"graffiti"`
+	ProposerName         string        `db:"name"`
 }

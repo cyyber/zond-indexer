@@ -181,27 +181,27 @@ func getUserSession(r *http.Request) (*types.User, *utils.CustomSession, error) 
 		logger.Errorf("error getting session from sessionStore: %v", err)
 		return u, session, err
 	}
-	ok := false
-	u.Authenticated, ok = session.GetValue("authenticated").(bool)
-	if !ok {
-		u.Authenticated = false
-		return u, session, nil
-	}
-	u.UserID, ok = session.GetValue("user_id").(uint64)
-	if !ok {
-		u.Authenticated = false
-		return u, session, nil
-	}
-	u.Subscription, ok = session.GetValue("subscription").(string)
-	if !ok {
-		u.Subscription = ""
-		return u, session, nil
-	}
-	u.UserGroup, ok = session.GetValue("user_group").(string)
-	if !ok {
-		u.UserGroup = ""
-		return u, session, nil
-	}
+	// ok := false
+	// u.Authenticated, ok = session.GetValue("authenticated").(bool)
+	// if !ok {
+	// 	u.Authenticated = false
+	// 	return u, session, nil
+	// }
+	// u.UserID, ok = session.GetValue("user_id").(uint64)
+	// if !ok {
+	// 	u.Authenticated = false
+	// 	return u, session, nil
+	// }
+	// u.Subscription, ok = session.GetValue("subscription").(string)
+	// if !ok {
+	// 	u.Subscription = ""
+	// 	return u, session, nil
+	// }
+	// u.UserGroup, ok = session.GetValue("user_group").(string)
+	// if !ok {
+	// 	u.UserGroup = ""
+	// 	return u, session, nil
+	// }
 	return u, session, nil
 }
 

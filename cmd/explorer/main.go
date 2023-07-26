@@ -370,12 +370,12 @@ func main() {
 		// 		logrus.Infof("ethclients initialized")
 		// 	}
 
-		// 	if cfg.Frontend.SessionSecret == "" {
-		// 		logrus.Fatal("session secret is empty, please provide a secure random string.")
-		// 		return
-		// 	}
+		if cfg.Frontend.SessionSecret == "" {
+			logrus.Fatal("session secret is empty, please provide a secure random string.")
+			return
+		}
 
-		// 	utils.InitSessionStore(cfg.Frontend.SessionSecret)
+		utils.InitSessionStore(cfg.Frontend.SessionSecret)
 
 		// 	if !utils.Config.Frontend.OnlyAPI {
 		// 		if utils.Config.Frontend.SiteDomain == "" {
@@ -397,15 +397,15 @@ func main() {
 		router.GET("/latestState", handlers.LatestState)
 		// 		router.HandleFunc("/launchMetrics", handlers.SlotVizMetrics).Methods("GET")
 		router.GET("/index/data", handlers.IndexPageData)
-		// 		router.HandleFunc("/slot/{slotOrHash}", handlers.Slot).Methods("GET")
-		// 		router.HandleFunc("/slot/{slotOrHash}/deposits", handlers.SlotDepositData).Methods("GET")
-		// 		router.HandleFunc("/slot/{slotOrHash}/votes", handlers.SlotVoteData).Methods("GET")
-		// 		router.HandleFunc("/slot/{slot}/attestations", handlers.SlotAttestationsData).Methods("GET")
-		// 		router.HandleFunc("/slot/{slot}/withdrawals", handlers.SlotWithdrawalData).Methods("GET")
-		// 		router.HandleFunc("/slot/{slot}/blsChange", handlers.SlotBlsChangeData).Methods("GET")
-		// 		router.HandleFunc("/slots/finder", handlers.SlotFinder).Methods("GET")
-		// 		router.HandleFunc("/slots", handlers.Slots).Methods("GET")
-		// 		router.HandleFunc("/slots/data", handlers.SlotsData).Methods("GET")
+		router.GET("/slot/:slot", handlers.Slot)
+		router.GET("/slot/:slot/deposits", handlers.SlotDepositData)
+		router.GET("/slot/:slot/votes", handlers.SlotVoteData)
+		router.GET("/slot/:slot/attestations", handlers.SlotAttestationsData)
+		router.GET("/slot/:slot/withdrawals", handlers.SlotWithdrawalData)
+		router.GET("/slot/:slot/blsChange", handlers.SlotBlsChangeData)
+		router.GET("/slots/finder", handlers.SlotFinder)
+		router.GET("/slots", handlers.Slots)
+		router.GET("/slots/data", handlers.SlotsData)
 		// 		router.HandleFunc("/blocks", handlers.Eth1Blocks).Methods("GET")
 		// 		router.HandleFunc("/blocks/data", handlers.Eth1BlocksData).Methods("GET")
 		// 		router.HandleFunc("/blocks/highest", handlers.Eth1BlocksHighest).Methods("GET")
@@ -439,9 +439,9 @@ func main() {
 		// 		router.HandleFunc("/charts/{chart}/data", handlers.GenericChartData).Methods("GET")
 		// 		router.HandleFunc("/vis/blocks", handlers.VisBlocks).Methods("GET")
 		// 		router.HandleFunc("/vis/votes", handlers.VisVotes).Methods("GET")
-		// 		router.HandleFunc("/epoch/{epoch}", handlers.Epoch).Methods("GET")
-		// 		router.HandleFunc("/epochs", handlers.Epochs).Methods("GET")
-		// 		router.HandleFunc("/epochs/data", handlers.EpochsData).Methods("GET")
+		router.GET("/epoch/:epoch", handlers.Epoch)
+		router.GET("/epochs", handlers.Epochs)
+		router.GET("/epochs/data", handlers.EpochsData)
 
 		// 		router.HandleFunc("/validator/{index}", handlers.Validator).Methods("GET")
 		// 		router.HandleFunc("/validator/{index}/proposedblocks", handlers.ValidatorProposedBlocks).Methods("GET")
@@ -655,6 +655,7 @@ func main() {
 		// 	//}
 		// 	//n.Use(frontendLogger)
 
+		// router.Use(gin.WrapH(utils.SessionStore.SCS.LoadAndSave(router.Handler())))
 		srv := &http.Server{
 			Addr:           cfg.Frontend.Server.Host + ":" + cfg.Frontend.Server.Port,
 			Handler:        router,

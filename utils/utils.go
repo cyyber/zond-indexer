@@ -897,3 +897,12 @@ func SliceContains(list []string, target string) bool {
 	}
 	return false
 }
+
+func IsApiRequest(r *http.Request) bool {
+	query, ok := r.URL.Query()["format"]
+	return ok && len(query) > 0 && query[0] == "json"
+}
+
+func GetNetwork() string {
+	return strings.ToLower(Config.Chain.Config.ConfigName)
+}

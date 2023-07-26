@@ -138,7 +138,8 @@
       const infLoading = document.getElementById('attestations');
       if(infLoading) {
         try {
-          const res = await fetch(`/slot/${encodeURI({{.Slot}})}/attestations`);
+          let slotNumber =  .Slot 
+          const res = await fetch(`/slot/${encodeURI(slotNumber)}/attestations`);
           const data = await res.json();
 
           for (let i = 1; i < data.length; ++i) {
