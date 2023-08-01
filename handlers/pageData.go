@@ -1,7 +1,6 @@
 package handlers
 
 import (
-	"context"
 	"errors"
 
 	"fmt"
@@ -23,9 +22,10 @@ var layoutTemplateFiles = []string{
 	"layout/ad_handler.html",
 }
 var authSessionName = "auth"
-var authResetEmailRateLimit = time.Second * 60 * 2
-var authConfirmEmailRateLimit = time.Second * 60 * 2
-var authInternalServerErrorFlashMsg = "Error: Something went wrong :( Please retry later"
+
+// var authResetEmailRateLimit = time.Second * 60 * 2
+// var authConfirmEmailRateLimit = time.Second * 60 * 2
+// var authInternalServerErrorFlashMsg = "Error: Something went wrong :( Please retry later"
 
 func InitPageData(w http.ResponseWriter, r *http.Request, active, path, title string, mainTemplates []string) *types.PageData {
 	fullTitle := fmt.Sprintf("%v - %v - zondscan.in - %v", title, utils.Config.Frontend.SiteName, time.Now().Year())
@@ -217,24 +217,24 @@ func getUser(r *http.Request) *types.User {
 	// }
 }
 
-func purgeAllSessionsForUser(ctx context.Context, userId uint64) error {
-	// invalidate all sessions for this user
-	err := utils.SessionStore.SCS.Iterate(ctx, func(ctx context.Context) error {
-		sessionUserID, ok := utils.SessionStore.SCS.Get(ctx, "user_id").(uint64)
-		if !ok {
-			return nil
-		}
+// func purgeAllSessionsForUser(ctx context.Context, userId uint64) error {
+// 	// invalidate all sessions for this user
+// 	err := utils.SessionStore.SCS.Iterate(ctx, func(ctx context.Context) error {
+// 		sessionUserID, ok := utils.SessionStore.SCS.Get(ctx, "user_id").(uint64)
+// 		if !ok {
+// 			return nil
+// 		}
 
-		if userId == sessionUserID {
-			return utils.SessionStore.SCS.Destroy(ctx)
-		}
+// 		if userId == sessionUserID {
+// 			return utils.SessionStore.SCS.Destroy(ctx)
+// 		}
 
-		return nil
-	})
+// 		return nil
+// 	})
 
-	return err
+// 	return err
 
-}
+// }
 
 func createMenuItems(active string, isMain bool) []types.MainMenuItem {
 	hiddenFor := []string{"confirmation", "login", "register"}

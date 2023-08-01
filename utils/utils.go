@@ -906,3 +906,15 @@ func IsApiRequest(r *http.Request) bool {
 func GetNetwork() string {
 	return strings.ToLower(Config.Chain.Config.ConfigName)
 }
+
+// GetTimeToNextWithdrawal calculates the time it takes for the validators next withdrawal to be processed.
+func GetTimeToNextWithdrawal(distance uint64) time.Time {
+	minTimeToWithdrawal := time.Now().Add(time.Second * time.Duration((distance/Config.Chain.Config.MaxValidatorsPerWithdrawalSweep)*Config.Chain.Config.SecondsPerSlot))
+	timeToWithdrawal := time.Now().Add(time.Second * time.Duration((float64(distance)/float64(Config.Chain.Config.MaxWithdrawalsPerPayload))*float64(Config.Chain.Config.SecondsPerSlot)))
+
+	if timeToWithdrawal.Before(minTimeToWithdrawal) {
+		return minTimeToWithdrawal
+	}
+
+	return timeToWithdrawal
+}

@@ -562,6 +562,111 @@ func FormatName(name string, trunc_opt ...bool) template.HTML {
 	return template.HTML(fmt.Sprintf("<span class=\"text-monospace\">%s</span>", name))
 }
 
+func FormatIncomeClElInt64(income types.ClElInt64, currency string) template.HTML {
+	var incomeTrimmed string = exchangeAndTrim(currency, income.Total)
+	className := "text-success"
+	if income.Total < 0 {
+		className = "text-danger"
+	}
+
+	if income.Cl != 0 || income.El != 0 {
+		return template.HTML(fmt.Sprintf(`
+		<span class="%s" data-toggle="tooltip"
+			data-html="true"
+			title="
+			CL: %s <br> 
+			EL: %s">
+			<b>%s %s</b>
+		</span>`, className, FormatExchangedAmount(income.Cl, currency), FormatExchangedAmount(income.El, currency), incomeTrimmed, currency))
+	} else {
+		return template.HTML(fmt.Sprintf(`<span>%s%s</span>`, incomeTrimmed, currency))
+	}
+}
+
+// FormatBlockStatusShort will return an html status for a block.
+func FormatWithdrawalShort(slot uint64, amount uint64) template.HTML {
+	return template.HTML(fmt.Sprintf("<span title=\"Withdrawal processed in epoch %v during slot %v for %v\" data-toggle=\"tooltip\" class=\"mx-1 badge badge-pill bg-success text-white\" style=\"font-size: 12px; font-weight: 500;\"><i class=\"fas fa-money-bill\"></i></span>", EpochOfSlot(slot), slot, FormatCurrentBalance(amount, "ETH")))
+}
+
+func FormatBalanceChangeFormated(balance *int64, currencyName string, details *types.ValidatorEpochIncome) template.HTML {
+
+	income := ""
+	if details != nil {
+
+		income += fmt.Sprintf("Att. Source: %s GWei<br/>", FormatAddCommasFormated(float64(int64(details.AttestationSourceReward)-int64(details.AttestationSourcePenalty)), 0))
+		income += fmt.Sprintf("Att. Target: %s GWei<br/>", FormatAddCommasFormated(float64(int64(details.AttestationTargetReward)-int64(details.AttestationTargetPenalty)), 0))
+		income += fmt.Sprintf("Att. Head Vote: %s GWei<br/>", FormatAddCommasFormated(float64(details.AttestationHeadReward), 0))
+
+		if details.FinalityDelayPenalty > 0 {
+			income += fmt.Sprintf("Finality Delay Penalty: %s GWei<br/>", FormatAddCommasFormated(float64(details.FinalityDelayPenalty)*-1, 0))
+		}
+
+		if details.ProposerSlashingInclusionReward > 0 {
+			income += fmt.Sprintf("Proposer Slashing Inc. Reward: %s GWei<br/>", FormatAddCommasFormated(float64(details.ProposerSlashingInclusionReward), 0))
+		}
+
+		if details.ProposerAttestationInclusionReward > 0 {
+			income += fmt.Sprintf("Proposer Att. Inc. Reward: %s GWei<br/>", FormatAddCommasFormated(float64(details.ProposerAttestationInclusionReward), 0))
+		}
+
+		if details.ProposerSyncInclusionReward > 0 {
+			income += fmt.Sprintf("Proposer Sync Inc. Reward: %s GWei<br/>", FormatAddCommasFormated(float64(details.ProposerSyncInclusionReward), 0))
+		}
+
+		if details.SyncCommitteeReward > 0 {
+			income += fmt.Sprintf("Sync Comm. Reward: %s GWei<br/>", FormatAddCommasFormated(float64(details.SyncCommitteeReward), 0))
+		}
+
+		if details.SyncCommitteePenalty > 0 {
+			income += fmt.Sprintf("Sync Comm. Penalty: %s GWei<br/>", FormatAddCommasFormated(float64(details.SyncCommitteePenalty)*-1, 0))
+		}
+
+		if details.SlashingReward > 0 {
+			income += fmt.Sprintf("Slashing Reward: %s GWei<br/>", FormatAddCommasFormated(float64(details.SlashingReward), 0))
+		}
+
+		if details.SlashingPenalty > 0 {
+			income += fmt.Sprintf("Slashing Penalty: %s GWei<br/>", FormatAddCommasFormated(float64(details.SlashingPenalty)*-1, 0))
+		}
+
+		income += fmt.Sprintf("Total: %s GWei", FormatAddCommasFormated(float64(details.TotalClRewards()), 0))
+	}
+
+	if currencyName == "ETH" {
+		if balance == nil || *balance == 0 {
+			return template.HTML("<span class=\"float-right\">0 GWei</span>")
+		}
+		if *balance < 0 {
+			return template.HTML(fmt.Sprintf("<span title='%s' data-html=\"true\" data-toggle=\"tooltip\" class=\"text-danger float-right\">%s GWei</span>", income, FormatAddCommasFormated(float64(*balance), 0)))
+		}
+		return template.HTML(fmt.Sprintf("<span title='%s' data-html=\"true\" data-toggle=\"tooltip\" class=\"text-success float-right\">+%s GWei</span>", income, FormatAddCommasFormated(float64(*balance), 0)))
+	} else {
+		if balance == nil {
+			return template.HTML("<span class=\"float-right\">0 " + currencyName + "</span>")
+		}
+		if *balance == 0 {
+			return template.HTML("pending")
+		}
+
+		balanceF := float64(*balance) / float64(1e9)
+		exchangeRate := ExchangeRateForCurrency(currencyName)
+		value := balanceF * float64(exchangeRate)
+
+		if *balance < 0 {
+			return template.HTML(fmt.Sprintf("<span class=\"text-danger float-right\" data-toggle=\"tooltip\" data-placement=\"top\" title=\"%f\">%s %s</span>", value, FormatAddCommasFormated(value, 2), currencyName))
+		}
+		return template.HTML(fmt.Sprintf("<span class=\"text-success float-right\" data-toggle=\"tooltip\" data-placement=\"top\" title=\"%f\">+%s %s</span>", value, FormatAddCommasFormated(value, 2), currencyName))
+	}
+}
+
+// WithdrawalCredentialsToAddress converts withdrawalCredentials to an address if possible
+func WithdrawalCredentialsToAddress(credentials []byte) ([]byte, error) {
+	if IsValidWithdrawalCredentials(fmt.Sprintf("%#x", credentials)) && bytes.Equal(credentials[:1], []byte{0x01}) {
+		return credentials[12:], nil
+	}
+	return nil, fmt.Errorf("invalid withdrawal credentials")
+}
+
 func AddCopyButton(element template.HTML, copyContent string) template.HTML {
 	return template.HTML(fmt.Sprintf(`<span title="%s" data-toggle="tooltip">%v<span>`, copyContent, element)) + " " + template.HTML(CopyButton(copyContent))
 }

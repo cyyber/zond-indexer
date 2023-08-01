@@ -1550,3 +1550,35 @@ func LatestState() *types.LatestState {
 
 	return data
 }
+
+func GetLatestStats() *types.Stats {
+	wanted := &types.Stats{}
+	cacheKey := fmt.Sprintf("%d:frontend:latestStats", utils.Config.Chain.Config.DepositChainID)
+
+	if wanted, err := cache.TieredCache.GetWithLocalTimeout(cacheKey, time.Second*5, wanted); err == nil {
+		return wanted.(*types.Stats)
+	} else {
+		logger.Errorf("error retrieving slotVizMetrics from cache: %v", err)
+	}
+
+	// create an empty stats object if no stats exist (genesis)
+	return &types.Stats{
+		TopDepositors: &[]types.StatsTopDepositors{
+			{
+				Address:      "000",
+				DepositCount: 0,
+			},
+			{
+				Address:      "000",
+				DepositCount: 0,
+			},
+		},
+		InvalidDepositCount:            new(uint64),
+		UniqueValidatorCount:           new(uint64),
+		TotalValidatorCount:            new(uint64),
+		ActiveValidatorCount:           new(uint64),
+		PendingValidatorCount:          new(uint64),
+		ValidatorChurnLimit:            new(uint64),
+		LatestValidatorWithdrawalIndex: new(uint64),
+	}
+}

@@ -1106,3 +1106,191 @@ type BlocksPageDataBlocks struct {
 	Graffiti             []byte        `db:"graffiti"`
 	ProposerName         string        `db:"name"`
 }
+
+type ClElInt64 struct {
+	El    int64
+	Cl    int64
+	Total int64
+}
+
+type ClElFloat64 struct {
+	El    float64
+	Cl    float64
+	Total float64
+}
+
+type AddValidatorWatchlistModal struct {
+	CsrfField       template.HTML
+	ValidatorIndex  uint64
+	ValidatorPubkey string
+	Events          []EventNameCheckbox
+}
+
+type EventNameCheckbox struct {
+	EventLabel string
+	EventName
+	Active  bool
+	Warning template.HTML
+	Info    template.HTML
+}
+
+// ValidatorPageData is a struct to hold data for the validators page
+type ValidatorPageData struct {
+	Epoch                                    uint64 `db:"epoch"`
+	ValidatorIndex                           uint64 `db:"validatorindex"`
+	PublicKey                                []byte `db:"pubkey"`
+	WithdrawableEpoch                        uint64 `db:"withdrawableepoch"`
+	WithdrawCredentials                      []byte `db:"withdrawalcredentials"`
+	CurrentBalance                           uint64 `db:"balance"`
+	BalanceActivation                        uint64 `db:"balanceactivation"`
+	EffectiveBalance                         uint64 `db:"effectivebalance"`
+	Slashed                                  bool   `db:"slashed"`
+	SlashedBy                                uint64
+	SlashedAt                                uint64
+	SlashedFor                               string
+	ActivationEligibilityEpoch               uint64         `db:"activationeligibilityepoch"`
+	ActivationEpoch                          uint64         `db:"activationepoch"`
+	ExitEpoch                                uint64         `db:"exitepoch"`
+	Index                                    uint64         `db:"index"`
+	LastAttestationSlot                      *uint64        `db:"lastattestationslot"`
+	Name                                     string         `db:"name"`
+	Pool                                     string         `db:"pool"`
+	Tags                                     pq.StringArray `db:"tags"`
+	WithdrawableTs                           time.Time
+	ActivationEligibilityTs                  time.Time
+	ActivationTs                             time.Time
+	ExitTs                                   time.Time
+	Status                                   string `db:"status"`
+	BlocksCount                              uint64
+	ScheduledBlocksCount                     uint64
+	MissedBlocksCount                        uint64
+	OrphanedBlocksCount                      uint64
+	ProposedBlocksCount                      uint64
+	UnmissedBlocksPercentage                 float64 // missed/(executed+orphaned+scheduled)
+	AttestationsCount                        uint64
+	ExecutedAttestationsCount                uint64
+	MissedAttestationsCount                  uint64
+	OrphanedAttestationsCount                uint64
+	UnmissedAttestationsPercentage           float64 // missed/(executed+orphaned)
+	StatusProposedCount                      uint64
+	StatusMissedCount                        uint64
+	DepositsCount                            uint64
+	WithdrawalCount                          uint64
+	SlashingsCount                           uint64
+	PendingCount                             uint64
+	SyncCount                                uint64
+	ScheduledSyncCount                       uint64
+	ParticipatedSyncCount                    uint64
+	MissedSyncCount                          uint64
+	OrphanedSyncCount                        uint64
+	UnmissedSyncPercentage                   float64       // missed/(participated+orphaned)
+	IncomeToday                              ClElInt64     `json:"incomeToday"`
+	Income1d                                 ClElInt64     `json:"income1d"`
+	Income7d                                 ClElInt64     `json:"income7d"`
+	Income31d                                ClElInt64     `json:"income31d"`
+	IncomeTotal                              ClElInt64     `json:"incomeTotal"`
+	IncomeTotalFormatted                     template.HTML `json:"incomeTotalFormatted"`
+	Apr7d                                    ClElFloat64   `json:"apr7d"`
+	Apr31d                                   ClElFloat64   `json:"apr31d"`
+	Apr365d                                  ClElFloat64   `json:"apr365d"`
+	ProposalLuck                             float64
+	SyncLuck                                 float64
+	ProposalEstimate                         *time.Time
+	SyncEstimate                             *time.Time
+	AvgSlotInterval                          *time.Duration
+	AvgSyncInterval                          *time.Duration
+	Rank7d                                   int64 `db:"rank7d"`
+	RankCount                                int64 `db:"rank_count"`
+	RankPercentage                           float64
+	Proposals                                [][]uint64
+	IncomeHistoryChartData                   []*ChartDataPoint
+	ExecutionIncomeHistoryData               []*ChartDataPoint
+	Deposits                                 *ValidatorDeposits
+	Eth1DepositAddress                       []byte
+	FlashMessage                             string
+	Watchlist                                []*TaggedValidators
+	SubscriptionFlash                        []interface{}
+	User                                     *User
+	AverageAttestationInclusionDistance      float64
+	AttestationInclusionEffectiveness        float64
+	CsrfField                                template.HTML
+	NetworkStats                             *IndexPageData
+	ChurnRate                                uint64
+	QueuePosition                            uint64
+	EstimatedActivationTs                    time.Time
+	EstimatedActivationEpoch                 uint64
+	InclusionDelay                           int64
+	CurrentAttestationStreak                 uint64
+	LongestAttestationStreak                 uint64
+	IsRocketpool                             bool
+	Rocketpool                               *RocketpoolValidatorPageData
+	ShowMultipleWithdrawalCredentialsWarning bool
+	CappellaHasHappened                      bool
+	BLSChange                                *BLSChange
+	IsWithdrawableAddress                    bool
+	EstimatedNextWithdrawal                  template.HTML
+	AddValidatorWatchlistModal               *AddValidatorWatchlistModal
+	NextWithdrawalRow                        [][]interface{}
+}
+
+type RocketpoolValidatorPageData struct {
+	NodeAddress          *[]byte    `db:"node_address"`
+	MinipoolAddress      *[]byte    `db:"minipool_address"`
+	MinipoolNodeFee      *float64   `db:"minipool_node_fee"`
+	MinipoolDepositType  *string    `db:"minipool_deposit_type"`
+	MinipoolStatus       *string    `db:"minipool_status"`
+	MinipoolStatusTime   *time.Time `db:"minipool_status_time"`
+	NodeTimezoneLocation *string    `db:"node_timezone_location"`
+	NodeRPLStake         *string    `db:"node_rpl_stake"`
+	NodeMinRPLStake      *string    `db:"node_min_rpl_stake"`
+	NodeMaxRPLStake      *string    `db:"node_max_rpl_stake"`
+	CumulativeRPL        *string    `db:"rpl_cumulative_rewards"`
+	SmoothingClaimed     *string    `db:"claimed_smoothing_pool"`
+	SmoothingUnclaimed   *string    `db:"unclaimed_smoothing_pool"`
+	UnclaimedRPL         *string    `db:"unclaimed_rpl_rewards"`
+	SmoothingPoolOptIn   bool       `db:"smoothing_pool_opted_in"`
+	PenaltyCount         int        `db:"penalty_count"`
+	RocketscanUrl        string     `db:"-"`
+	NodeDepositBalance   *string    `db:"node_deposit_balance"`
+	NodeRefundBalance    *string    `db:"node_refund_balance"`
+	UserDepositBalance   *string    `db:"user_deposit_balance"`
+	IsVacant             bool       `db:"is_vacant"`
+	Version              *string    `db:"version"`
+	NodeDepositCredit    *string    `db:"deposit_credit"`
+	EffectiveRPLStake    *string    `db:"effective_rpl_stake"`
+}
+
+type ValidatorEarnings struct {
+	Income1d                ClElInt64     `json:"income1d"`
+	Income7d                ClElInt64     `json:"income7d"`
+	Income31d               ClElInt64     `json:"income31d"`
+	IncomeTotal             ClElInt64     `json:"incomeTotal"`
+	Apr7d                   ClElFloat64   `json:"apr"`
+	Apr31d                  ClElFloat64   `json:"apr31d"`
+	Apr365d                 ClElFloat64   `json:"apr365d"`
+	TotalDeposits           int64         `json:"totalDeposits"`
+	TotalWithdrawals        uint64        `json:"totalWithdrawals"`
+	EarningsInPeriodBalance int64         `json:"earningsInPeriodBalance"`
+	EarningsInPeriod        int64         `json:"earningsInPeriod"`
+	EpochStart              int64         `json:"epochStart"`
+	EpochEnd                int64         `json:"epochEnd"`
+	LastDayFormatted        template.HTML `json:"lastDayFormatted"`
+	LastWeekFormatted       template.HTML `json:"lastWeekFormatted"`
+	LastMonthFormatted      template.HTML `json:"lastMonthFormatted"`
+	TotalFormatted          template.HTML `json:"totalFormatted"`
+	TotalChangeFormatted    template.HTML `json:"totalChangeFormatted"`
+	TotalBalance            template.HTML `json:"totalBalance"`
+}
+
+type ValidatorHistory struct {
+	Epoch             uint64                `db:"epoch" json:"epoch,omitempty"`
+	BalanceChange     sql.NullInt64         `db:"balancechange" json:"balance_change,omitempty"`
+	AttesterSlot      sql.NullInt64         `db:"attestatation_attesterslot" json:"attester_slot,omitempty"`
+	InclusionSlot     sql.NullInt64         `db:"attestation_inclusionslot" json:"inclusion_slot,omitempty"`
+	AttestationStatus uint64                `db:"attestation_status" json:"attestation_status,omitempty"`
+	ProposalStatus    sql.NullInt64         `db:"proposal_status" json:"proposal_status,omitempty"`
+	ProposalSlot      sql.NullInt64         `db:"proposal_slot" json:"proposal_slot,omitempty"`
+	IncomeDetails     *ValidatorEpochIncome `db:"-" json:"income_details,omitempty"`
+	WithdrawalStatus  sql.NullInt64         `db:"withdrawal_status" json:"withdrawal_status,omitempty"`
+	WithdrawalSlot    sql.NullInt64         `db:"withdrawal_slot" json:"withdrawal_slot,omitempty"`
+}

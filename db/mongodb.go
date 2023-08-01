@@ -1159,3 +1159,19 @@ func (mongodb *Mongo) DeleteEpoch(epoch uint64) error {
 	logger.Infof("deleted %v documents\n", res.DeletedCount)
 	return nil
 }
+
+func GetCurrentDayClIncomeTotal(validator_indices []uint64) (int64, error) {
+	income, err := GetCurrentDayClIncome(validator_indices)
+
+	if err != nil {
+		return 0, err
+	}
+
+	total := int64(0)
+
+	for _, i := range income {
+		total += i
+	}
+
+	return total, nil
+}
