@@ -1294,3 +1294,146 @@ type ValidatorHistory struct {
 	WithdrawalStatus  sql.NullInt64         `db:"withdrawal_status" json:"withdrawal_status,omitempty"`
 	WithdrawalSlot    sql.NullInt64         `db:"withdrawal_slot" json:"withdrawal_slot,omitempty"`
 }
+
+// ValidatorAttestationSlashing is a struct to hold data of an attestation-slashing
+type ValidatorAttestationSlashing struct {
+	Epoch                  uint64        `db:"epoch" json:"epoch,omitempty"`
+	Slot                   uint64        `db:"slot" json:"slot,omitempty"`
+	Proposer               uint64        `db:"proposer" json:"proposer,omitempty"`
+	Attestestation1Indices pq.Int64Array `db:"attestation1_indices" json:"attestation1_indices,omitempty"`
+	Attestestation2Indices pq.Int64Array `db:"attestation2_indices" json:"attestation2_indices,omitempty"`
+}
+
+type ValidatorProposerSlashing struct {
+	Epoch         uint64 `db:"epoch" json:"epoch,omitempty"`
+	Slot          uint64 `db:"slot" json:"slot,omitempty"`
+	Proposer      uint64 `db:"proposer" json:"proposer,omitempty"`
+	ProposerIndex uint64 `db:"proposerindex" json:"proposer_index,omitempty"`
+}
+
+type MyCryptoSignature struct {
+	Address string `json:"address"`
+	Msg     string `json:"msg"`
+	Sig     string `json:"sig"`
+	Version string `json:"version"`
+}
+
+type ValidatorStatsTablePageData struct {
+	ValidatorIndex uint64
+	Rows           []*ValidatorStatsTableRow
+	Currency       string
+}
+
+type ValidatorStatsTableRow struct {
+	ValidatorIndex         uint64
+	Day                    int64         `db:"day"`
+	StartBalance           sql.NullInt64 `db:"start_balance"`
+	EndBalance             sql.NullInt64 `db:"end_balance"`
+	Income                 int64         `db:"cl_rewards_gwei"`
+	IncomeExchangeRate     float64       `db:"-"`
+	IncomeExchangeCurrency string        `db:"-"`
+	IncomeExchanged        float64       `db:"-"`
+	MinBalance             sql.NullInt64 `db:"min_balance"`
+	MaxBalance             sql.NullInt64 `db:"max_balance"`
+	StartEffectiveBalance  sql.NullInt64 `db:"start_effective_balance"`
+	EndEffectiveBalance    sql.NullInt64 `db:"end_effective_balance"`
+	MinEffectiveBalance    sql.NullInt64 `db:"min_effective_balance"`
+	MaxEffectiveBalance    sql.NullInt64 `db:"max_effective_balance"`
+	MissedAttestations     sql.NullInt64 `db:"missed_attestations"`
+	OrphanedAttestations   sql.NullInt64 `db:"orphaned_attestations"`
+	ProposedBlocks         sql.NullInt64 `db:"proposed_blocks"`
+	MissedBlocks           sql.NullInt64 `db:"missed_blocks"`
+	OrphanedBlocks         sql.NullInt64 `db:"orphaned_blocks"`
+	AttesterSlashings      sql.NullInt64 `db:"attester_slashings"`
+	ProposerSlashings      sql.NullInt64 `db:"proposer_slashings"`
+	Deposits               sql.NullInt64 `db:"deposits"`
+	DepositsAmount         sql.NullInt64 `db:"deposits_amount"`
+	ParticipatedSync       sql.NullInt64 `db:"participated_sync"`
+	MissedSync             sql.NullInt64 `db:"missed_sync"`
+	OrphanedSync           sql.NullInt64 `db:"orphaned_sync"`
+}
+
+// ValidatorsPageData is a struct to hold data about the validators page
+type ValidatorsPageData struct {
+	TotalCount           uint64
+	DepositedCount       uint64
+	PendingCount         uint64
+	ActiveCount          uint64
+	ActiveOnlineCount    uint64
+	ActiveOfflineCount   uint64
+	SlashingCount        uint64
+	SlashingOnlineCount  uint64
+	SlashingOfflineCount uint64
+	Slashed              uint64
+	ExitingCount         uint64
+	ExitingOnlineCount   uint64
+	ExitingOfflineCount  uint64
+	ExitedCount          uint64
+	VoluntaryExitsCount  uint64
+	UnknownCount         uint64
+	Validators           []*ValidatorsPageDataValidators
+	CappellaHasHappened  bool
+}
+
+// ValidatorsPageDataValidators is a struct to hold data about validators for the validators page
+type ValidatorsPageDataValidators struct {
+	TotalCount                 uint64 `db:"total_count"`
+	Epoch                      uint64 `db:"epoch"`
+	PublicKey                  []byte `db:"pubkey"`
+	ValidatorIndex             uint64 `db:"validatorindex"`
+	WithdrawableEpoch          uint64 `db:"withdrawableepoch"`
+	CurrentBalance             uint64 `db:"balance"`
+	EffectiveBalance           uint64 `db:"effectivebalance"`
+	Slashed                    bool   `db:"slashed"`
+	ActivationEligibilityEpoch uint64 `db:"activationeligibilityepoch"`
+	ActivationEpoch            uint64 `db:"activationepoch"`
+	ExitEpoch                  uint64 `db:"exitepoch"`
+	LastAttestationSlot        *int64 `db:"lastattestationslot"`
+	Name                       string `db:"name"`
+	State                      string `db:"state"`
+	MissedProposals            uint64 `db:"missedproposals"`
+	ExecutedProposals          uint64 `db:"executedproposals"`
+	MissedAttestations         uint64 `db:"missedattestations"`
+	ExecutedAttestations       uint64 `db:"executedattestations"`
+	Performance7d              int64  `db:"performance7d"`
+}
+
+type ValidatorSlashing struct {
+	Epoch                  uint64        `db:"epoch" json:"epoch,omitempty"`
+	Slot                   uint64        `db:"slot" json:"slot,omitempty"`
+	Proposer               uint64        `db:"proposer" json:"proposer,omitempty"`
+	SlashedValidator       *uint64       `db:"slashedvalidator" json:"slashed_validator,omitempty"`
+	Attestestation1Indices pq.Int64Array `db:"attestation1_indices" json:"attestation1_indices,omitempty"`
+	Attestestation2Indices pq.Int64Array `db:"attestation2_indices" json:"attestation2_indices,omitempty"`
+	Type                   string        `db:"type" json:"type"`
+}
+
+type WithdrawalsPageData struct {
+	Stats           *Stats
+	WithdrawalChart *ChartsPageDataChart
+	Withdrawals     *DataTableResponse
+	BlsChanges      *DataTableResponse
+}
+
+type WithdrawalStats struct {
+	WithdrawalsCount             uint64
+	WithdrawalsTotal             uint64
+	BLSChangeCount               uint64
+	ValidatorsWithBLSCredentials uint64
+}
+
+type ChangeWithdrawalCredentialsPageData struct {
+	FlashMessage string
+	CsrfField    template.HTML
+	RecaptchaKey string
+}
+
+type DepositsPageData struct {
+	*Stats
+	DepositContract string
+	DepositChart    *ChartsPageDataChart
+}
+
+type EthOneDepositLeaderBoardPageData struct {
+	DepositContract string
+}
